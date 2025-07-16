@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Data Backend Simulator</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .normal { background-color: #4CAF50; color: white; }
+        .high { background-color: #FF9800; color: white; }
+        .random { background-color: #2196F3; color: white; }
+        .low { background-color: #9C27B0; color: white; }
+        .spike { background-color: #F44336; color: white; }
+        .config {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .config label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .config input {
+            width: 100px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .status {
+            background-color: #e8f5e8;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4CAF50;
+        }
+        .matrix-display {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .sensor-cell {
+            background-color: #f0f0f0;
+            padding: 15px;
+            text-align: center;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .log {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 Sensor Data Backend Simulator</h1>
+        
+        <div class="config">
+            <label>Device UID: <input type="text" id="uid" value="1"></label>
+            <label>Sampling Rate: <input type="number" id="sampleRate" value="1000" min="100" max="5000"> ms</label>
+        </div>
+
+        <div class="status" id="status">
+            Status: Disconnected
+        </div>
+
+        <div class="controls">
+            <button class="normal" onclick="setMode('normal')">Normal Mode</button>
+            <button class="high" onclick="setMode('high')">High Values</button>
+            <button class="random" onclick="setMode('random')">Random Mode</button>
+            <button class="low" onclick="setMode('low')">Low Values</button>
+            <button class="spike" onclick="setMode('spike')">Spike Mode</button>
+        </div>
+
+        <div>
+            <h3>Current Sensor Matrix (3x3):</h3>
+            <div class="matrix-display" id="matrix-display">
+                <div class="sensor-cell">0</div>
+                <div class="sensor-cell">0</div>
+                <div class="sensor-cell">0</div>
+                <div class="sensor-cell">0</div>
+                <div class="sensor-cell">0</div>
+                <div class="sensor-cell">0</div>
+                <div class="sensor-cell">0</div>
+                <div class="sensor-cell">0</div>
+                <div class="sensor-cell">0</div>
+            </div>
+        </div>
+
+        <div>
+            <h3>Transmission Log:</h3>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let client = null;
+        let currentMode = 'normal';
+        let isRunning = false;
+        let intervalId = null;
+
+        // MQTT connection
+        function connectMQTT() {
+            const options = {
+                host: 'broker.hivemq.com',
+                port: 8000,
+                protocol: 'ws',
+                clientId: 'sensor_backend_' + Math.random().toString(16).substr(2, 8)
+            };
+
+            client = mqtt.connect(options);
+
+            client.on('connect', function () {
+                document.getElementById('status').innerHTML = 'Status: ✅ Connected to MQTT Broker';
+                document.getElementById('status').style.backgroundColor = '#e8f5e8';
+                log('Connected to MQTT broker');
+                startTransmission();
+            });
+
+            client.on('error', function (error) {
+                document.getElementById('status').innerHTML = 'Status: ❌ Connection Error';
+                document.getElementById('status').style.backgroundColor = '#ffe8e8';
+                log('MQTT Error: ' + error.message);
+            });
+
+            client.on('close', function () {
+                document.getElementById('status').innerHTML = 'Status: 🔄 Reconnecting...';
+                document.getElementById('status').style.backgroundColor = '#fff3cd';
+                log('MQTT connection closed. Retrying in 5 seconds...');
+                if (intervalId) clearInterval(intervalId);
+                isRunning = false;
+                setTimeout(connectMQTT, 5000);
+            });
+        }
+
+        function generateSensorData() {
+            const data = [];
+            
+            switch(currentMode) {
+                case 'normal':
+                    for(let i = 0; i < 9; i++) {
+                        data.push(Math.floor(Math.random() * 1000) + 2000); // 2000-3000 range
+                    }
+                    break;
+                    
+                case 'high':
+                    for(let i = 0; i < 9; i++) {
+                        data.push(Math.floor(Math.random() * 500) + 3500); // 3500-4000 range
+                    }
+                    break;
+                    
+                case 'random':
+                    for(let i = 0; i < 9; i++) {
+                        data.push(Math.floor(Math.random() * 4096)); // 0-4095 full range
+                    }
+                    break;
+                    
+                case 'low':
+                    for(let i = 0; i < 9; i++) {
+                        data.push(Math.floor(Math.random() * 800) + 100); // 100-900 range
+                    }
+                    break;
+                    
+                case 'spike':
+                    for(let i = 0; i < 9; i++) {
+                        // 80% chance normal, 20% chance spike
+                        if(Math.random() < 0.8) {
+                            data.push(Math.floor(Math.random() * 1000) + 2000);
+                        } else {
+                            data.push(Math.floor(Math.random() * 500) + 3800); // Spike values
+                        }
+                    }
+                    break;
+            }
+            
+            return data;
+        }
+
+        function updateMatrixDisplay(data) {
+            const cells = document.querySelectorAll('.sensor-cell');
+            data.forEach((value, index) => {
+                cells[index].textContent = value;
+                // Color coding based on value
+                const intensity = value / 4095;
+                const red = Math.floor(255 * intensity);
+                const blue = Math.floor(255 * (1 - intensity));
+                cells[index].style.backgroundColor = `rgb(${red}, 100, ${blue})`;
+                cells[index].style.color = intensity > 0.5 ? 'white' : 'black';
+            });
+        }
+
+        function transmitData() {
+            if (!client || !client.connected) return;
+
+            const uid = document.getElementById('uid').value || '1';
+            const sensorData = generateSensorData();
+            const timestamp = new Date().toISOString();
+            
+            const message = {
+                timestamp: timestamp,
+                uid: uid,
+                sensor_matrix: sensorData,
+                mode: currentMode
+            };
+
+            const topic = `hkust/ece/enose/${uid}`;
+            
+            client.publish(topic, JSON.stringify(message), function(error) {
+                if (error) {
+                    log('Publish error: ' + error.message);
+                } else {
+                    log(`Published to ${topic}: [${sensorData.join(', ')}]`);
+                    updateMatrixDisplay(sensorData);
+                }
+            });
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            log(`Mode changed to: ${mode}`);
+            
+            // Update button states
+            document.querySelectorAll('.controls button').forEach(btn => {
+                btn.style.opacity = '0.6';
+            });
+            event.target.style.opacity = '1';
+        }
+
+        function startTransmission() {
+            if (intervalId) clearInterval(intervalId);
+            
+            const sampleRate = parseInt(document.getElementById('sampleRate').value) || 1000;
+            intervalId = setInterval(transmitData, sampleRate);
+            isRunning = true;
+            log(`Started transmission with ${sampleRate}ms interval`);
+        }
+
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        // Event listeners
+        document.getElementById('sampleRate').addEventListener('change', function() {
+            if (isRunning) {
+                startTransmission();
+            }
+        });
+
+        // Initialize
+        connectMQTT();
+        
+        // Set default mode
+        document.querySelector('.normal').style.opacity = '1';
+        document.querySelectorAll('.controls button:not(.normal)').forEach(btn => {
+            btn.style.opacity = '0.6';
+        });
+    </script>
+</body>
+</html>

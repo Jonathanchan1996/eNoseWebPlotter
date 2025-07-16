@@ -22,7 +22,7 @@ hkust/ece/enose/{uid}
 
 ChatGPT chat
 ```
-I would like to build a realtime sensor plotter tools. The sensor is a 3x3 matrix in 1Hz. There is the structure `Backend -> mqtt broker -> Frontend`. But for this stage, lets start from simulating random data. First, use `html` and `js` to make a Backend simulator to generate 9 random sensor data (`0-4095`) as the sensor is 3x3. the web GUI has 5 buttons, each of them will control the generated data differently. And it will send the data timestamp and sensor data via mqtt broker. the topic is `hkust/ece/enose/{uid}` where default `{uid}` is `1`. Secondly, as for the Frontend, The GUI has: company logo, raw data (3x3 color scale matrix), time series of that 9 data.
+I would like to build a realtime sensor plotter tools. The sensor is a 3x3 matrix in 1Hz. There is the structure `Backend -> mqtt broker -> Frontend`. mqtt broken use `mqtt-dashboard.com:8884`. But for this stage, lets start from simulating random data. First, use `html` and `js` to make a Backend simulator to generate 9 random sensor data (`0-4095`) as the sensor is 3x3. the web GUI has 5 buttons, each of them will control the generated data differently. And it will send the data timestamp and sensor data via mqtt broker. the topic is `hkust/ece/enose/{uid}` where default `{uid}` is `1`. Secondly, as for the Frontend, The GUI has: company logo, raw data (3x3 color scale matrix), time series of that 9 data.
 
 In short, all the app there are `html`. 
 ```

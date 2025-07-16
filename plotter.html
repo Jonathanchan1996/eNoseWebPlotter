@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Sensor Plotter</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #4a90e2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            padding: 30px;
+        }
+        
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+        }
+        
+        .section h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #4a90e2;
+            padding-bottom: 10px;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .config-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .config-panel label {
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .config-panel input {
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .config-panel input:focus {
+            outline: none;
+            border-color: #4a90e2;
+        }
+        
+        .sensor-matrix {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .sensor-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            border: 2px solid #e9ecef;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .sensor-cell::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+            transform: translateX(-100%);
+            transition: transform 0.6s;
+        }
+        
+        .sensor-cell.updated::before {
+            transform: translateX(100%);
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+            height: 600px;
+        }
+        
+        .chart-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .chart-controls button {
+            padding: 8px 16px;
+            border: 2px solid #4a90e2;
+            background: white;
+            color: #4a90e2;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .chart-controls button.active,
+        .chart-controls button:hover {
+            background: #4a90e2;
+            color: white;
+        }
+        
+        .data-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .data-stat {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #4a90e2;
+        }
+        
+        .data-stat .value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .data-stat .label {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-container {
+                height: 400px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .sensor-matrix {
+                gap: 10px;
+            }
+            
+            .sensor-cell {
+                font-size: 0.9em;
+            }
+            
+            .data-info {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🔬 HKUST EnoseViz</div>
+            <div class="subtitle">Real-time Electronic Nose Sensor Monitoring</div>
+        </div>
+        
+        <div class="main-content">
+            <div class="left-panel">
+                <div class="section">
+                    <div class="status disconnected" id="connectionStatus">
+                        🔴 Disconnected
+                    </div>
+                    
+                    <div class="config-panel">
+                        <label>Device UID:</label>
+                        <input type="text" id="deviceUID" value="1" placeholder="Enter device UID">
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h3>📊 Raw Sensor Matrix (3×3)</h3>
+                    <div class="sensor-matrix" id="sensorMatrix">
+                        <div class="sensor-cell">0</div>
+                        <div class="sensor-cell">0</div>
+                        <div class="sensor-cell">0</div>
+                        <div class="sensor-cell">0</div>
+                        <div class="sensor-cell">0</div>
+                        <div class="sensor-cell">0</div>
+                        <div class="sensor-cell">0</div>
+                        <div class="sensor-cell">0</div>
+                        <div class="sensor-cell">0</div>
+                    </div>
+                    
+                    <div class="data-info">
+                        <div class="data-stat">
+                            <div class="value" id="avgValue">0</div>
+                            <div class="label">Average</div>
+                        </div>
+                        <div class="data-stat">
+                            <div class="value" id="maxValue">0</div>
+                            <div class="label">Maximum</div>
+                        </div>
+                        <div class="data-stat">
+                            <div class="value" id="minValue">0</div>
+                            <div class="label">Minimum</div>
+                        </div>
+                        <div class="data-stat">
+                            <div class="value" id="lastUpdate">Never</div>
+                            <div class="label">Last Update</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <h3>📈 Time Series Data</h3>
+                <div class="chart-controls">
+                    <button class="active" onclick="toggleSensor('all')">Show All</button>
+                    <button onclick="toggleSensor(0)">Sensor 1</button>
+                    <button onclick="toggleSensor(1)">Sensor 2</button>
+                    <button onclick="toggleSensor(2)">Sensor 3</button>
+                    <button onclick="toggleSensor(3)">Sensor 4</button>
+                    <button onclick="toggleSensor(4)">Sensor 5</button>
+                    <button onclick="toggleSensor(5)">Sensor 6</button>
+                    <button onclick="toggleSensor(6)">Sensor 7</button>
+                    <button onclick="toggleSensor(7)">Sensor 8</button>
+                    <button onclick="toggleSensor(8)">Sensor 9</button>
+                </div>
+                <canvas id="timeSeriesChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let mqttClient = null;
+        let chart = null;
+        let sensorData = Array(9).fill(0);
+        let timeSeriesData = Array(9).fill().map(() => []);
+        let maxDataPoints = 50;
+        let activeSensors = Array(9).fill(true);
+
+        // MQTT Client Setup
+        function initializeMQTT() {
+            const options = {
+                host: 'broker.hivemq.com',
+                port: 8000,
+                protocol: 'ws',
+                clientId: 'sensor_frontend_' + Math.random().toString(16).substr(2, 8)
+            };
+
+            mqttClient = mqtt.connect(options);
+
+            mqttClient.on('connect', function() {
+                updateConnectionStatus(true);
+                subscribeTo();
+            });
+
+            mqttClient.on('error', function(error) {
+                updateConnectionStatus(false);
+                console.error('MQTT Error:', error);
+            });
+
+            mqttClient.on('message', function(topic, message) {
+                try {
+                    const data = JSON.parse(message.toString());
+                    processSensorData(data);
+                } catch (error) {
+                    console.error('Error parsing message:', error);
+                }
+            });
+
+            mqttClient.on('close', function() {
+                updateConnectionStatus(false);
+                console.log('MQTT connection closed. Retrying in 5 seconds...');
+                setTimeout(initializeMQTT, 5000);
+            });
+        }
+
+        function subscribeTo() {
+            const uid = document.getElementById('deviceUID').value || '1';
+            const topic = `hkust/ece/enose/${uid}`;
+            
+            mqttClient.subscribe(topic, function(error) {
+                if (error) {
+                    console.error('Subscribe error:', error);
+                } else {
+                    console.log('Subscribed to:', topic);
+                }
+            });
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusElement = document.getElementById('connectionStatus');
+            if (connected) {
+                statusElement.textContent = '🟢 Connected';
+                statusElement.className = 'status connected';
+            } else {
+                statusElement.textContent = '🔴 Disconnected';
+                statusElement.className = 'status disconnected';
+            }
+        }
+
+        function processSensorData(data) {
+            if (data.sensor_matrix && Array.isArray(data.sensor_matrix) && data.sensor_matrix.length === 9) {
+                sensorData = data.sensor_matrix;
+                updateSensorMatrix();
+                updateTimeSeriesData();
+                updateStatistics();
+                updateLastUpdateTime();
+            }
+        }
+
+        function updateSensorMatrix() {
+            const cells = document.querySelectorAll('.sensor-cell');
+            sensorData.forEach((value, index) => {
+                cells[index].textContent = value;
+                cells[index].classList.add('updated');
+                
+                // Color coding based on value (0-4095 range)
+                const intensity = Math.min(value / 4095, 1);
+                const hue = (1 - intensity) * 240; // Blue to Red
+                const saturation = 70;
+                const lightness = 85 - (intensity * 30); // Darker for higher values
+                
+                cells[index].style.backgroundColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+                cells[index].style.color = intensity > 0.6 ? 'white' : '#2c3e50';
+                
+                // Remove animation class after animation
+                setTimeout(() => {
+                    cells[index].classList.remove('updated');
+                }, 600);
+            });
+        }
+
+        function updateTimeSeriesData() {
+            const currentTime = new Date();
+            
+            sensorData.forEach((value, index) => {
+                timeSeriesData[index].push({
+                    x: currentTime,
+                    y: value
+                });
+                
+                // Keep only the last maxDataPoints
+                if (timeSeriesData[index].length > maxDataPoints) {
+                    timeSeriesData[index].shift();
+                }
+            });
+            
+            updateChart();
+        }
+
+        function updateStatistics() {
+            const values = sensorData.filter(v => v !== null && v !== undefined);
+            
+            if (values.length > 0) {
+                const avg = Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+                const max = Math.max(...values);
+                const min = Math.min(...values);
+                
+                document.getElementById('avgValue').textContent = avg;
+                document.getElementById('maxValue').textContent = max;
+                document.getElementById('minValue').textContent = min;
+            }
+        }
+
+        function updateLastUpdateTime() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
+        }
+
+        function initializeChart() {
+            const ctx = document.getElementById('timeSeriesChart').getContext('2d');
+            
+            const datasets = [];
+            const colors = [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+                '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0'
+            ];
+            
+            for (let i = 0; i < 9; i++) {
+                datasets.push({
+                    label: `Sensor ${i + 1}`,
+                    data: timeSeriesData[i],
+                    borderColor: colors[i],
+                    backgroundColor: colors[i] + '20',
+                    fill: false,
+                    tension: 0.1,
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
+                    hidden: !activeSensors[i]
+                });
+            }
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                displayFormats: {
+                                    second: 'HH:mm:ss'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Sensor Value'
+                            },
+                            min: 0,
+                            max: 4095
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return new Date(context[0].parsed.x).toLocaleTimeString();
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 200
+                    }
+                }
+            });
+        }
+
+        function updateChart() {
+            if (chart) {
+                chart.data.datasets.forEach((dataset, index) => {
+                    dataset.data = timeSeriesData[index];
+                    dataset.hidden = !activeSensors[index];
+                });
+                chart.update('none');
+            }
+        }
+
+        function toggleSensor(sensorIndex) {
+            // Update button states
+            document.querySelectorAll('.chart-controls button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            if (sensorIndex === 'all') {
+                activeSensors.fill(true);
+            } else {
+                activeSensors.fill(false);
+                activeSensors[sensorIndex] = true;
+            }
+            
+            updateChart();
+        }
+
+        // Event Listeners
+        document.getElementById('deviceUID').addEventListener('change', function() {
+            if (mqttClient && mqttClient.connected) {
+                subscribeTo();
+            }
+        });
+
+        // Initialize everything
+        window.addEventListener('load', function() {
+            initializeChart();
+            initializeMQTT();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (mqttClient) {
+                mqttClient.end();
+            }
+        });
+    </script>
+</body>
+</html>
