@@ -2,15 +2,19 @@
 ### Author: Jonathan
 ### Date: 2025-07-16
 
-Host:Plot 
 
+System Archi
+```
+Backend -> mqtt broker -> Frontend 
+```
+
+Host:Plot 
 ```
 mqtt-dashboard.com:8884
 ```
 
 
-Topic:
-
+Topic
 ```
 hkust/ece/enose/{uid}
 ```
