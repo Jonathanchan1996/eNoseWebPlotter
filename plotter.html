@@ -327,9 +327,9 @@
         // MQTT Client Setup
         function initializeMQTT() {
             const options = {
-                host: 'broker.hivemq.com',
-                port: 8000,
-                protocol: 'ws',
+                host: 'mqtt-dashboard.com',
+                port: 8884,
+                protocol: 'wss',
                 clientId: 'sensor_frontend_' + Math.random().toString(16).substr(2, 8)
             };
 
@@ -386,10 +386,10 @@
         }
 
         function processSensorData(data) {
-            if (data.sensor_matrix && Array.isArray(data.sensor_matrix) && data.sensor_matrix.length === 9) {
-                sensorData = data.sensor_matrix;
+            if (data.sensor && data.sensor.data && Array.isArray(data.sensor.data) && data.sensor.data.length === 9) {
+                sensorData = data.sensor.data;
                 updateSensorMatrix();
-                updateTimeSeriesData();
+                updateTimeSeriesData(data.ts);
                 updateStatistics();
                 updateLastUpdateTime();
             }
@@ -417,8 +417,8 @@
             });
         }
 
-        function updateTimeSeriesData() {
-            const currentTime = new Date();
+        function updateTimeSeriesData(timestamp) {
+            const currentTime = new Date(timestamp * 1000);
             
             sensorData.forEach((value, index) => {
                 timeSeriesData[index].push({

@@ -111,6 +111,8 @@
         </div>
 
         <div class="controls">
+            <button onclick="startTransmission()">Start</button>
+            <button onclick="stopTransmission()">Stop</button>
             <button class="normal" onclick="setMode('normal')">Normal Mode</button>
             <button class="high" onclick="setMode('high')">High Values</button>
             <button class="random" onclick="setMode('random')">Random Mode</button>
@@ -148,9 +150,9 @@
         // MQTT connection
         function connectMQTT() {
             const options = {
-                host: 'broker.hivemq.com',
-                port: 8000,
-                protocol: 'ws',
+                host: 'mqtt-dashboard.com',
+                port: 8884,
+                protocol: 'wss',
                 clientId: 'sensor_backend_' + Math.random().toString(16).substr(2, 8)
             };
 
@@ -160,7 +162,6 @@
                 document.getElementById('status').innerHTML = 'Status: ✅ Connected to MQTT Broker';
                 document.getElementById('status').style.backgroundColor = '#e8f5e8';
                 log('Connected to MQTT broker');
-                startTransmission();
             });
 
             client.on('error', function (error) {
@@ -240,13 +241,13 @@
 
             const uid = document.getElementById('uid').value || '1';
             const sensorData = generateSensorData();
-            const timestamp = new Date().toISOString();
+            const timestamp = Math.floor(new Date().getTime() / 1000);
             
             const message = {
-                timestamp: timestamp,
-                uid: uid,
-                sensor_matrix: sensorData,
-                mode: currentMode
+                ts: timestamp,
+                sensor: {
+                    data: sensorData
+                }
             };
 
             const topic = `hkust/ece/enose/${uid}`;
@@ -273,12 +274,20 @@
         }
 
         function startTransmission() {
+            if (isRunning) return;
             if (intervalId) clearInterval(intervalId);
             
             const sampleRate = parseInt(document.getElementById('sampleRate').value) || 1000;
             intervalId = setInterval(transmitData, sampleRate);
             isRunning = true;
             log(`Started transmission with ${sampleRate}ms interval`);
+        }
+
+        function stopTransmission() {
+            if (!isRunning) return;
+            if (intervalId) clearInterval(intervalId);
+            isRunning = false;
+            log('Stopped transmission');
         }
 
         function log(message) {
