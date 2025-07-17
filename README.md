@@ -33,6 +33,10 @@ In short, all the app there are `html`.
 
 Topic approach 
 
+```
+{path} = hkust/ece/enose/{uid}
+```
+
 | Topic | Type | Description |
 | --- | --- | --- |
 | {path}/timestamp | int | timestamp of each data |
