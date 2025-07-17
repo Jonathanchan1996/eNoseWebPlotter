@@ -71,7 +71,7 @@
 
     <div class="interval-control">
       <label for="interval">Publish Interval (ms):</label>
-      <input type="number" id="interval" value="300" min="100" />
+      <input type="number" id="interval" value="500" min="100" />
     </div>
 
     <button id="startBtn">Start Publishing</button>
@@ -173,6 +173,13 @@
     const stopBtn = document.getElementById("stopBtn");
     const heatmapCanvas = document.getElementById("heatmapCanvas");
     const heatmapCtx = heatmapCanvas.getContext("2d");
+
+    // Compute default UID
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const hour = String(now.getHours()).padStart(2, '0');
+    const defaultUID = `hkust${day}${hour}a01`;
+    uidInput.value = defaultUID;
 
     const pcaCtx = document.getElementById("pcaChart").getContext("2d");
     const pcaChart = new Chart(pcaCtx, {
@@ -449,13 +456,9 @@
         if (publishInterval) clearInterval(publishInterval);
     
         const path = `hkust/ece/enose/${uid}`;
-        // Publish patterns once
-        client.publish(`${path}/patterns`, JSON.stringify(patterns));
     
         // Start sending data
         publishInterval = setInterval(() => {
-          const path = `hkust/ece/enose/${uid}`;
-    
           // Generate data for each topic
           const now = Date.now();
           const timestamp = (now / 1000).toFixed(2); // Keep for publishing
@@ -469,6 +472,8 @@
           client.publish(`${path}/sensor/px`, JSON.stringify(sensorPx));
           client.publish(`${path}/sensor/range`, JSON.stringify(sensorRange));
           client.publish(`${path}/sensor/rawdata`, JSON.stringify(sensorRawData));
+          // Publish patterns every interval
+          client.publish(`${path}/patterns`, JSON.stringify(patterns));
     
           // Update the log
           messageLogDiv.textContent = `Message Log: Published data with timestamp ${timestamp}.`;

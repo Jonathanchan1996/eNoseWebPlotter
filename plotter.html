@@ -43,11 +43,15 @@
     let sensorHistories = Array.from({ length: 9 }, () => []);
     let pcaData = [];
     let patterns = {};
+    let pcaComponents = null;
+    let basePointsPlotted = false; // Flag to prevent duplicates
 
-    const pcaComponents = [
-      [0.36556958, 0.36627698, 0.28301237, 0.35354425, 0.35678054, 0.37234382, 0.18345269, 0.37335322, 0.29686821],
-      [0.15359641, 0.04513628, 0.24236335, -0.25835382, -0.27349091, 0.0581136, 0.73249712, 0.08806563, -0.47581731]
-    ];
+    // Compute default UID
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const hour = String(now.getHours()).padStart(2, '0');
+    currentUID = `hkust${day}${hour}a01`;
+    document.getElementById('uid').value = currentUID;
 
     // Charts
     const sensorCtx = document.getElementById('sensorChart').getContext('2d');
@@ -62,6 +66,7 @@
         }))
       },
       options: {
+        animation: false,
         scales: {
           x: { type: 'time', time: { unit: 'second' } },
           y: { min: 0, max: 1 }
@@ -120,6 +125,18 @@
 
     function connectAndSubscribe() {
       if (client) client.end();
+      // Reset state for new UID
+      patterns = {};
+      pcaComponents = null;
+      basePointsPlotted = false;
+      pcaChart.data.datasets = [{
+        label: 'Current Point',
+        data: [],
+        backgroundColor: 'black',
+        pointRadius: 5
+      }];
+      pcaChart.update();
+  
       client = mqtt.connect(brokerURL);
       client.on('connect', () => {
         const path = `hkust/ece/enose/${currentUID}`;
@@ -127,6 +144,7 @@
         client.subscribe(`${path}/sensor/rawdata`);
         client.subscribe(`${path}/classify/point`);
         client.subscribe(`${path}/patterns`);
+        client.subscribe(`${path}/pca_components`);
       });
       client.on('message', (topic, message) => {
         const path = `hkust/ece/enose/${currentUID}`;
@@ -147,22 +165,53 @@
           pcaChart.update();
         } else if (topic === `${path}/patterns`) {
           patterns = JSON.parse(message.toString());
-          // Optionally plot base points on PCA
-          const baseColors = { 'W': 'blue', 'B': 'green', 'T': 'red', 'F': 'orange' };
-          Object.keys(patterns).forEach((key, index) => {
-            const point = {
-              x: patterns[key].reduce((sum, val, i) => sum + val * pcaComponents[0][i], 0),
-              y: patterns[key].reduce((sum, val, i) => sum + val * pcaComponents[1][i], 0)
+          // If pcaComponents already received, plot base points
+          if (pcaComponents && !basePointsPlotted) {
+            const baseColors = {
+              'W': 'blue',
+              'A': 'purple',  // Added color for A
+              'B': 'green',
+              'T': 'red',
+              'F': 'orange'
             };
-            pcaChart.data.datasets.push({
-              label: `${key} Base`,
-              data: [point],
-              backgroundColor: baseColors[key],
-              pointRadius: 8,
-              pointStyle: 'triangle'
+            Object.keys(patterns).forEach((key) => {
+              const point = {
+                x: patterns[key].reduce((sum, val, i) => sum + val * pcaComponents[0][i], 0),
+                y: patterns[key].reduce((sum, val, i) => sum + val * pcaComponents[1][i], 0)
+              };
+              pcaChart.data.datasets.push({
+                label: `${key} Base`,
+                data: [point],
+                backgroundColor: baseColors[key],
+                pointRadius: 8,
+                pointStyle: 'triangle'
+              });
             });
-          });
-          pcaChart.update();
+            pcaChart.update();
+            basePointsPlotted = true;
+          }
+        } else if (topic === `${path}/pca_components`) {
+          pcaComponents = JSON.parse(message.toString());
+          // If patterns already received, plot base points
+          if (patterns && Object.keys(patterns).length > 0 && !basePointsPlotted) {
+            // Same plotting code as above
+            const baseColors = { 'W': 'blue', 'B': 'green', 'T': 'red', 'F': 'orange' };
+            Object.keys(patterns).forEach((key, index) => {
+              const point = {
+                x: patterns[key].reduce((sum, val, i) => sum + val * pcaComponents[0][i], 0),
+                y: patterns[key].reduce((sum, val, i) => sum + val * pcaComponents[1][i], 0)
+              };
+              pcaChart.data.datasets.push({
+                label: `${key} Base`,
+                data: [point],
+                backgroundColor: baseColors[key],
+                pointRadius: 8,
+                pointStyle: 'triangle'
+              });
+            });
+            pcaChart.update();
+            basePointsPlotted = true;
+          }
         }
       });
     }
