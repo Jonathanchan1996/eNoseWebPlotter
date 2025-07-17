@@ -99,11 +99,11 @@
             <tr>
               <td>W</td>
               <td><button onclick="setPatternAndPercentage('W', 10)">10%</button></td>
-              <td><button onclick="setPatternAndPercentage('W', 30)">30%</button></td>
+              <!-- <td><button onclick="setPatternAndPercentage('W', 30)">30%</button></td>
               <td><button onclick="setPatternAndPercentage('W', 60)">60%</button></td>
               <td><button onclick="setPatternAndPercentage('W', 90)">90%</button></td>
               <td><input type="number" id="customPercentW" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
-              <td><button onclick="applyCustomPercent('W')">Apply</button></td>
+              <td><button onclick="applyCustomPercent('W')">Apply</button></td> -->
             </tr>
             <tr>
               <td>A</td>
@@ -232,15 +232,20 @@
     let currentPercentage = 0; // Default to 0%
     let currentPattern = null; // No pattern initially
 
+    // const patterns = {
+    //   'W': [0.05, 0.1, 0.1, 0.05, 0.1, 0.1, 0.05, 0.1, 0.1],
+    //   'A': [1, 1, 0.1, 1, 1, 0.5, 0.1, 1, 0.5],
+    //   'B': [1, 1, 0.1, 0.5, 0.5, 0.5, 1, 1, 0.1],
+    //   'T': [0.2, 0.2, 0.1, 0.1, 0.2, 0.2, 0.2, 0.5, 0.2],
+    //   'F': [0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.1],
+    // };
     const patterns = {
-      'W': [1, 1, 1, 1, 1, 1, 1, 1, 1],
-      'A': [1, 1, 0.1, 1, 1, 0.5, 0.1, 1, 0.5],
-      'B': [1, 1, 0.1, 0.5, 0.5, 0.5, 1, 1, 0.1],
-      'T': [0.2, 0.2, 0.1, 0.1, 0.2, 0.2, 0.2, 0.5, 0.2],
-      'F': [0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.1],
-      
+    'W': [0.053, 0.109, 0.097, 0.048, 0.093, 0.106, 0.047, 0.098, 0.102],
+    'A': [0.912, 0.987, 0.102, 0.935, 0.944, 0.522, 0.108, 0.958, 0.482],
+    'B': [0.942, 0.971, 0.105, 0.482, 0.478, 0.513, 0.958, 0.941, 0.102],
+    'T': [0.211, 0.203, 0.098, 0.101, 0.195, 0.218, 0.193, 0.506, 0.198],
+    'F': [0.212, 0.097, 0.103, 0.097, 0.098, 0.094, 0.194, 0.205, 0.095],
     };
-
     // Function to set pattern and percentage
     function setPatternAndPercentage(pattern, percentage) {
       currentPattern = patterns[pattern];
@@ -259,12 +264,26 @@
       setPatternAndPercentage(patternKey, percentage);
     }
 
-    // Function to generate sensor raw data array (same as before)
+    let sensorHistories = Array.from({ length: 9 }, () => []);
+    const windowSize = 10;
+    let previousEMAs = Array.from({ length: 9 }, () => 0); // Initialize previous EMAs to 0
+
+    // Function to generate sensor raw data array
+    const emaAlphas = {
+      'W': [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+      'A': [0.2, 0.2, 0.1, 0.2, 0.2, 0.15, 0.1, 0.2, 0.15],
+      'B': [0.2, 0.2, 0.1, 0.15, 0.15, 0.15, 0.2, 0.2, 0.1],
+      'T': [0.1, 0.1, 0.05, 0.05, 0.1, 0.1, 0.1, 0.15, 0.1],
+      'F': [0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.05]
+    };
     function generateSensorRawData() {
       const maxValue = 4095;
       const scale = currentPercentage / 100;
+      let generatedValues;
+      let alphas = emaAlphas[currentPattern] || Array(9).fill(0.1); // Default alpha 0.1 if no pattern
+
       if (currentPattern) {
-        return currentPattern.map(ratio => {
+        generatedValues = currentPattern.map(ratio => {
           const base = ratio * scale * maxValue;
           const noise = Math.floor(Math.random() * 51); // 0-50
           let value = base + noise;
@@ -273,7 +292,7 @@
         });
       } else {
         // Fallback to uniform percentage
-        return Array.from({ length: 9 }, () => {
+        generatedValues = Array.from({ length: 9 }, () => {
           const base = scale * maxValue;
           const noise = Math.floor(Math.random() * 51); // 0-50
           let value = base + noise;
@@ -281,6 +300,16 @@
           return Math.floor(value);
         });
       }
+
+      // Apply EMA
+      const smoothedValues = generatedValues.map((newValue, index) => {
+        const alpha = alphas[index];
+        const ema = alpha * newValue + (1 - alpha) * previousEMAs[index];
+        previousEMAs[index] = ema;
+        return Math.floor(ema);
+      });
+
+      return smoothedValues;
     }
 
     // Function to draw the heatmap
@@ -302,64 +331,65 @@
     };
 
     // Function to start publishing data
-    const startPublishing = () => {
-      const uid = uidInput.value.trim();
-      const interval = parseInt(intervalInput.value.trim(), 10);
-
-      if (!uid) {
-        alert("Please provide a valid UID.");
-        return;
-      }
-
-      if (isNaN(interval) || interval < 100) {
-        alert("Please enter a valid interval (minimum 100 ms).");
-        return;
-      }
-
-      // Disable the start button and enable the stop button
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
-
-      // Clear any existing interval
-      if (publishInterval) clearInterval(publishInterval);
-
-      // Start sending data
-      publishInterval = setInterval(() => {
-        const path = `hkust/ece/enose/${uid}`;
-
-        // Generate data for each topic
-        const now = Date.now();
-        const timestamp = (now / 1000).toFixed(2); // Keep for publishing
-        const timeForChart = now; // Use milliseconds for chart
-        const sensorPx = [3, 3];
-        const sensorRange = [0, 4095];
-        const sensorRawData = generateSensorRawData(); // Use new function
-
-        // Publish topics
-        client.publish(`${path}/timestamp`, timestamp.toString());
-        client.publish(`${path}/sensor/px`, JSON.stringify(sensorPx));
-        client.publish(`${path}/sensor/range`, JSON.stringify(sensorRange));
-        client.publish(`${path}/sensor/rawdata`, JSON.stringify(sensorRawData));
-
-        // Update the log
-        messageLogDiv.textContent = `Message Log: Published data with timestamp ${timestamp}.`;
-        messageLogDiv.style.color = "green";
-
-        // Update the chart
-        sensorRawData.forEach((value, index) => {
-          sensorChart.data.datasets[index].data.push({ x: timeForChart, y: value });
-          if (sensorChart.data.datasets[index].data.length > 20) {
-            sensorChart.data.datasets[index].data.shift(); // Keep the chart limited to the last 20 entries
-          }
-        });
-
-        sensorChart.update();
-
-        // Update the heatmap
-        drawHeatmap(sensorRawData);
-      }, interval);
-    };
-
+    function startPublishing() {
+        setPatternAndPercentage('W', 10);
+        const uid = uidInput.value.trim();
+        const interval = parseInt(intervalInput.value.trim(), 10);
+    
+        if (!uid) {
+          alert("Please provide a valid UID.");
+          return;
+        }
+    
+        if (isNaN(interval) || interval < 100) {
+          alert("Please enter a valid interval (minimum 100 ms).");
+          return;
+        }
+    
+        // Disable the start button and enable the stop button
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+    
+        // Clear any existing interval
+        if (publishInterval) clearInterval(publishInterval);
+    
+        // Start sending data
+        publishInterval = setInterval(() => {
+          const path = `hkust/ece/enose/${uid}`;
+    
+          // Generate data for each topic
+          const now = Date.now();
+          const timestamp = (now / 1000).toFixed(2); // Keep for publishing
+          const timeForChart = now; // Use milliseconds for chart
+          const sensorPx = [3, 3];
+          const sensorRange = [0, 4095];
+          const sensorRawData = generateSensorRawData(); // Use new function
+    
+          // Publish topics
+          client.publish(`${path}/timestamp`, timestamp.toString());
+          client.publish(`${path}/sensor/px`, JSON.stringify(sensorPx));
+          client.publish(`${path}/sensor/range`, JSON.stringify(sensorRange));
+          client.publish(`${path}/sensor/rawdata`, JSON.stringify(sensorRawData));
+    
+          // Update the log
+          messageLogDiv.textContent = `Message Log: Published data with timestamp ${timestamp}.`;
+          messageLogDiv.style.color = "green";
+    
+          // Update the chart
+          sensorRawData.forEach((value, index) => {
+            sensorChart.data.datasets[index].data.push({ x: timeForChart, y: value });
+            if (sensorChart.data.datasets[index].data.length > 20) {
+              sensorChart.data.datasets[index].data.shift(); // Keep the chart limited to the last 20 entries
+            }
+          });
+    
+          sensorChart.update();
+    
+          // Update the heatmap
+          drawHeatmap(sensorRawData);
+        }, interval);
+      };
+    
     // Function to stop publishing data
     const stopPublishing = () => {
       if (publishInterval) {
