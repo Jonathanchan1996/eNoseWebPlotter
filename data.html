@@ -279,57 +279,79 @@
     function generateSensorRawData() {
       const maxValue = 4095;
       const scale = currentPercentage / 100;
-      let generatedValues;
+      let generatedBases;
       let alphas = emaAlphas[currentPattern] || Array(9).fill(0.1); // Default alpha 0.1 if no pattern
 
       if (currentPattern) {
-        generatedValues = currentPattern.map(ratio => {
+        generatedBases = currentPattern.map(ratio => {
           const base = ratio * scale * maxValue;
-          const noise = Math.floor(Math.random() * 51); // 0-50
-          let value = base + noise;
-          value = Math.max(0, Math.min(maxValue, value));
-          return Math.floor(value);
+          return base;
         });
       } else {
         // Fallback to uniform percentage
-        generatedValues = Array.from({ length: 9 }, () => {
+        generatedBases = Array.from({ length: 9 }, () => {
           const base = scale * maxValue;
-          const noise = Math.floor(Math.random() * 51); // 0-50
-          let value = base + noise;
-          value = Math.max(0, Math.min(maxValue, value));
-          return Math.floor(value);
+          return base;
         });
       }
 
-      // Apply EMA
-      const smoothedValues = generatedValues.map((newValue, index) => {
+      // Apply EMA to bases
+      const smoothedValues = generatedBases.map((base, index) => {
         const alpha = alphas[index];
-        const ema = alpha * newValue + (1 - alpha) * previousEMAs[index];
-        previousEMAs[index] = ema;
-        return Math.floor(ema);
+        const ema = alpha * base + (1 - alpha) * previousEMAs[index];
+        previousEMAs[index] = ema; // Update with smoothed value before noise
+        return ema;
       });
 
-      return smoothedValues;
+      // Add noise after EMA
+      const finalValues = smoothedValues.map(ema => {
+        const noise = Math.floor(Math.random() * 51); // 0-50
+        let value = ema + noise;
+        value = Math.max(0, Math.min(maxValue, value));
+        return Math.floor(value);
+      });
+
+      return finalValues;
     }
 
     // Function to draw the heatmap
-    const drawHeatmap = (data) => {
+    function drawHeatmap(data) {
       const cellSize = 100; // Each cell is 100x100 pixels
+      // GnBu color palette (9 steps from ColorBrewer)
+      const gnBuColors = [
+        [247, 252, 253], // lightest
+        [224, 236, 244],
+        [191, 211, 230],
+        [158, 188, 218],
+        [140, 150, 198],
+        [140, 107, 177],
+        [136, 65, 157],
+        [129, 15, 124],
+        [77, 0, 75] // darkest
+      ];
+    
       for (let row = 0; row < 3; row++) {
         for (let col = 0; col < 3; col++) {
           const value = data[row * 3 + col];
-          const intensity = Math.floor((value / 4095) * 255); // Scale value to 0-255 for color intensity
-          heatmapCtx.fillStyle = `rgb(${intensity}, 0, ${255 - intensity})`; // Heatmap color (red to blue)
+          const normalized = value / 4095; // 0 to 1
+          // Interpolate between palette colors
+          const index = Math.min(Math.floor(normalized * (gnBuColors.length - 1)), gnBuColors.length - 2);
+          const frac = (normalized * (gnBuColors.length - 1)) - index;
+          const r = Math.floor(gnBuColors[index][0] + frac * (gnBuColors[index + 1][0] - gnBuColors[index][0]));
+          const g = Math.floor(gnBuColors[index][1] + frac * (gnBuColors[index + 1][1] - gnBuColors[index][1]));
+          const b = Math.floor(gnBuColors[index][2] + frac * (gnBuColors[index + 1][2] - gnBuColors[index][2]));
+          heatmapCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
           heatmapCtx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
-
+    
           // Add text value in the cell
-          heatmapCtx.fillStyle = "white";
+          // Adjust text color for visibility (white or black based on brightness)
+          const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
+          heatmapCtx.fillStyle = brightness > 150 ? 'black' : 'white';
           heatmapCtx.font = "16px Arial";
           heatmapCtx.fillText(value, col * cellSize + 35, row * cellSize + 55);
         }
       }
     };
-
     // Function to start publishing data
     function startPublishing() {
         setPatternAndPercentage('W', 10);
