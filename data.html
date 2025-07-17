@@ -473,7 +473,17 @@
           client.publish(`${path}/sensor/range`, JSON.stringify(sensorRange));
           client.publish(`${path}/sensor/rawdata`, JSON.stringify(sensorRawData));
           // Publish patterns and pca_components every interval
+          client.publish(`${path}/classify/patterns`, JSON.stringify(patterns));
           client.publish(`${path}/classify/pca_components`, JSON.stringify(pcaComponents));
+    
+          // Compute and publish base points
+          const basePoints = {};
+          Object.keys(patterns).forEach(key => {
+            const sensorData = patterns[key]; // Use ratios as is (assuming they represent 100% scale)
+            const point = computePCAProjection(sensorData);
+            basePoints[key] = [point.x, point.y];
+          });
+          client.publish(`${path}/classify/base_points`, JSON.stringify(basePoints));
     
           // Update the log
           messageLogDiv.textContent = `Message Log: Published data with timestamp ${timestamp}.`;

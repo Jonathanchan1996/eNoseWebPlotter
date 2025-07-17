@@ -42,6 +42,13 @@
     let currentUID = 'a1';
     let sensorHistories = Array.from({ length: 9 }, () => []);
     let pcaData = [];
+    const baseColors = {
+      'W': 'blue',
+      'A': 'purple',
+      'B': 'green',
+      'T': 'red',
+      'F': 'orange'
+    };
     let patterns = {};
     let pcaComponents = null;
     let basePointsPlotted = false; // Flag to prevent duplicates
@@ -126,9 +133,6 @@
     function connectAndSubscribe() {
       if (client) client.end();
       // Reset state for new UID
-      patterns = {};
-      pcaComponents = null;
-      basePointsPlotted = false;
       pcaChart.data.datasets = [{
         label: 'Current Point',
         data: [],
@@ -143,8 +147,7 @@
         client.subscribe(`${path}/timestamp`);
         client.subscribe(`${path}/sensor/rawdata`);
         client.subscribe(`${path}/classify/point`);
-        client.subscribe(`${path}/patterns`);
-        client.subscribe(`${path}/pca_components`);
+        client.subscribe(`${path}/classify/base_points`);
       });
       client.on('message', (topic, message) => {
         const path = `hkust/ece/enose/${currentUID}`;
@@ -163,60 +166,22 @@
           const [x, y] = JSON.parse(message.toString());
           pcaChart.data.datasets[0].data = [{ x, y }];
           pcaChart.update();
-        } else if (topic === `${path}/patterns`) {
-          patterns = JSON.parse(message.toString());
-          // If pcaComponents already received, plot base points
-          if (pcaComponents && !basePointsPlotted) {
-            const baseColors = {
-              'W': 'blue',
-              'A': 'purple',
-              'B': 'green',
-              'T': 'red',
-              'F': 'orange'
-            };
-            Object.keys(patterns).forEach((key) => {
-              const point = {
-                x: patterns[key].reduce((sum, val, i) => sum + val * pcaComponents[0][i], 0),
-                y: patterns[key].reduce((sum, val, i) => sum + val * pcaComponents[1][i], 0)
-              };
+        } else if (topic === `${path}/classify/base_points`) {
+          const basePoints = JSON.parse(message.toString());
+          // Clear existing base datasets
+          pcaChart.data.datasets = pcaChart.data.datasets.filter(ds => !ds.label.includes('Base'));
+          
+          // Add new base points
+          for (const [key, point] of Object.entries(basePoints)) {
               pcaChart.data.datasets.push({
-                label: `${key} Base`,
-                data: [point],
-                backgroundColor: baseColors[key],
-                pointRadius: 8,
-                pointStyle: 'triangle'
+                  label: `${key} Base`,
+                  data: [{x: point[0], y: point[1]}],
+                  backgroundColor: baseColors[key] || 'rgba(0, 0, 0, 0.5)',
+                  pointRadius: 8,
+                  pointStyle: 'triangle'
               });
-            });
-            pcaChart.update();
-            basePointsPlotted = true;
           }
-        } else if (topic === `${path}/pca_components`) {
-          pcaComponents = JSON.parse(message.toString());
-          // If patterns already received, plot base points
-          if (patterns && Object.keys(patterns).length > 0 && !basePointsPlotted) {
-            const baseColors = {
-              'W': 'blue',
-              'A': 'purple',
-              'B': 'green',
-              'T': 'red',
-              'F': 'orange'
-            };
-            Object.keys(patterns).forEach((key) => {
-              const point = {
-                x: patterns[key].reduce((sum, val, i) => sum + val * pcaComponents[0][i], 0),
-                y: patterns[key].reduce((sum, val, i) => sum + val * pcaComponents[1][i], 0)
-              };
-              pcaChart.data.datasets.push({
-                label: `${key} Base`,
-                data: [point],
-                backgroundColor: baseColors[key],
-                pointRadius: 8,
-                pointStyle: 'triangle'
-              });
-            });
-            pcaChart.update();
-            basePointsPlotted = true;
-          }
+          pcaChart.update();
         }
       });
     }
