@@ -64,14 +64,14 @@
 <body>
   <div class="container">
     <h1>Sensor Array GUI debugger</h1>
-    <div>
+    <div class="interval-control">
       <label for="uid">UID:</label>
       <input type="text" id="uid" value="a1" />
     </div>
 
     <div class="interval-control">
       <label for="interval">Publish Interval (ms):</label>
-      <input type="number" id="interval" value="100" min="100" />
+      <input type="number" id="interval" value="300" min="100" />
     </div>
 
     <button id="startBtn">Start Publishing</button>
@@ -240,7 +240,7 @@
     //   'F': [0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.1],
     // };
     const patterns = {
-    'W': [0.053, 0.109, 0.097, 0.048, 0.093, 0.106, 0.047, 0.098, 0.102],
+    'W': [0.003, 0.009, 0.047, 0.018, 0.023, 0.036, 0.027, 0.098, 0.022],
     'A': [0.912, 0.987, 0.102, 0.935, 0.944, 0.522, 0.108, 0.958, 0.482],
     'B': [0.942, 0.971, 0.105, 0.482, 0.478, 0.513, 0.958, 0.941, 0.102],
     'T': [0.211, 0.203, 0.098, 0.101, 0.195, 0.218, 0.193, 0.506, 0.198],
