@@ -1,317 +1,383 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sensor Data Backend Simulator</title>
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .controls {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-        button {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-        .normal { background-color: #4CAF50; color: white; }
-        .high { background-color: #FF9800; color: white; }
-        .random { background-color: #2196F3; color: white; }
-        .low { background-color: #9C27B0; color: white; }
-        .spike { background-color: #F44336; color: white; }
-        .config {
-            background-color: #f9f9f9;
-            padding: 20px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-        }
-        .config label {
-            display: block;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-        .config input {
-            width: 100px;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .status {
-            background-color: #e8f5e8;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            border-left: 4px solid #4CAF50;
-        }
-        .matrix-display {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 20px;
-        }
-        .sensor-cell {
-            background-color: #f0f0f0;
-            padding: 15px;
-            text-align: center;
-            border-radius: 6px;
-            font-weight: bold;
-            transition: background-color 0.3s ease;
-        }
-        .log {
-            background-color: #f9f9f9;
-            padding: 15px;
-            border-radius: 6px;
-            max-height: 200px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 12px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sensor Array GUI debugger</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    input, button {
+      margin: 10px 0;
+      padding: 10px;
+      width: 100%;
+      font-size: 16px;
+    }
+    button {
+      cursor: pointer;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .status, .message-log {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #f1f1f1;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .message-log {
+      color: #333;
+    }
+    .interval-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .interval-control input {
+      width: auto;
+      flex: 1;
+    }
+    .heatmap-container {
+      margin-top: 20px;
+      text-align: center;
+    }
+    canvas {
+      margin-top: 20px;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🔬 Sensor Data Backend Simulator</h1>
-        
-        <div class="config">
-            <label>Device UID: <input type="text" id="uid" value="1"></label>
-            <label>Sampling Rate: <input type="number" id="sampleRate" value="1000" min="100" max="5000"> ms</label>
-        </div>
-
-        <div class="status" id="status">
-            Status: Disconnected
-        </div>
-
-        <div class="controls">
-            <button onclick="startTransmission()">Start</button>
-            <button onclick="stopTransmission()">Stop</button>
-            <button class="normal" onclick="setMode('normal')">Normal Mode</button>
-            <button class="high" onclick="setMode('high')">High Values</button>
-            <button class="random" onclick="setMode('random')">Random Mode</button>
-            <button class="low" onclick="setMode('low')">Low Values</button>
-            <button class="spike" onclick="setMode('spike')">Spike Mode</button>
-        </div>
-
-        <div>
-            <h3>Current Sensor Matrix (3x3):</h3>
-            <div class="matrix-display" id="matrix-display">
-                <div class="sensor-cell">0</div>
-                <div class="sensor-cell">0</div>
-                <div class="sensor-cell">0</div>
-                <div class="sensor-cell">0</div>
-                <div class="sensor-cell">0</div>
-                <div class="sensor-cell">0</div>
-                <div class="sensor-cell">0</div>
-                <div class="sensor-cell">0</div>
-                <div class="sensor-cell">0</div>
-            </div>
-        </div>
-
-        <div>
-            <h3>Transmission Log:</h3>
-            <div class="log" id="log"></div>
-        </div>
+  <div class="container">
+    <h1>Sensor Array GUI debugger</h1>
+    <div>
+      <label for="uid">UID:</label>
+      <input type="text" id="uid" value="a1" />
     </div>
 
-    <script>
-        let client = null;
-        let currentMode = 'normal';
-        let isRunning = false;
-        let intervalId = null;
+    <div class="interval-control">
+      <label for="interval">Publish Interval (ms):</label>
+      <input type="number" id="interval" value="1000" min="100" />
+    </div>
 
-        // MQTT connection
-        function connectMQTT() {
-            const options = {
-                host: 'mqtt-dashboard.com',
-                port: 8884,
-                protocol: 'wss',
-                clientId: 'sensor_backend_' + Math.random().toString(16).substr(2, 8)
-            };
+    <button id="startBtn">Start Publishing</button>
+    <button id="stopBtn" disabled>Stop Publishing</button>
 
-            client = mqtt.connect(options);
+    <div class="status" id="status">Status: Not Connected</div>
+    <div class="message-log" id="messageLog">Message Log: No messages published yet.</div>
 
-            client.on('connect', function () {
-                document.getElementById('status').innerHTML = 'Status: ✅ Connected to MQTT Broker';
-                document.getElementById('status').style.backgroundColor = '#e8f5e8';
-                log('Connected to MQTT broker');
-            });
+    <div class="heatmap-container">
+      <h2>Sensor Heatmap (3x3)</h2>
+      <canvas id="heatmapCanvas" width="300" height="300" style="border: 1px solid black;"></canvas>
+      <div class="pattern-table" style="margin-top: 10px;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th>Pattern</th>
+              <th>10%</th>
+              <th>30%</th>
+              <th>60%</th>
+              <th>90%</th>
+              <th>Custom % (0-100)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>W</td>
+              <td><button onclick="setPatternAndPercentage('W', 10)">10%</button></td>
+              <td><button onclick="setPatternAndPercentage('W', 30)">30%</button></td>
+              <td><button onclick="setPatternAndPercentage('W', 60)">60%</button></td>
+              <td><button onclick="setPatternAndPercentage('W', 90)">90%</button></td>
+              <td><input type="number" id="customPercentW" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
+              <td><button onclick="applyCustomPercent('W')">Apply</button></td>
+            </tr>
+            <tr>
+              <td>A</td>
+              <td><button onclick="setPatternAndPercentage('A', 10)">10%</button></td>
+              <td><button onclick="setPatternAndPercentage('A', 30)">30%</button></td>
+              <td><button onclick="setPatternAndPercentage('A', 60)">60%</button></td>
+              <td><button onclick="setPatternAndPercentage('A', 90)">90%</button></td>
+              <td><input type="number" id="customPercentA" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
+              <td><button onclick="applyCustomPercent('A')">Apply</button></td>
+            </tr>
+            <tr>
+              <td>B</td>
+              <td><button onclick="setPatternAndPercentage('B', 10)">10%</button></td>
+              <td><button onclick="setPatternAndPercentage('B', 30)">30%</button></td>
+              <td><button onclick="setPatternAndPercentage('B', 60)">60%</button></td>
+              <td><button onclick="setPatternAndPercentage('B', 90)">90%</button></td>
+              <td><input type="number" id="customPercentB" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
+              <td><button onclick="applyCustomPercent('B')">Apply</button></td>
+            </tr>
+            <tr>
+              <td>T</td>
+              <td><button onclick="setPatternAndPercentage('T', 10)">10%</button></td>
+              <td><button onclick="setPatternAndPercentage('T', 30)">30%</button></td>
+              <td><button onclick="setPatternAndPercentage('T', 60)">60%</button></td>
+              <td><button onclick="setPatternAndPercentage('T', 90)">90%</button></td>
+              <td><input type="number" id="customPercentT" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
+              <td><button onclick="applyCustomPercent('T')">Apply</button></td>
+            </tr>
+            <tr>
+              <td>F</td>
+              <td><button onclick="setPatternAndPercentage('F', 10)">10%</button></td>
+              <td><button onclick="setPatternAndPercentage('F', 30)">30%</button></td>
+              <td><button onclick="setPatternAndPercentage('F', 60)">60%</button></td>
+              <td><button onclick="setPatternAndPercentage('F', 90)">90%</button></td>
+              <td><input type="number" id="customPercentF" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
+              <td><button onclick="applyCustomPercent('F')">Apply</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-            client.on('error', function (error) {
-                document.getElementById('status').innerHTML = 'Status: ❌ Connection Error';
-                document.getElementById('status').style.backgroundColor = '#ffe8e8';
-                log('MQTT Error: ' + error.message);
-            });
+    <div>
+      <h2>Sensor Data Plot</h2>
+      <canvas id="sensorChart"></canvas>
+    </div>
+  </div>
 
-            client.on('close', function () {
-                document.getElementById('status').innerHTML = 'Status: 🔄 Reconnecting...';
-                document.getElementById('status').style.backgroundColor = '#fff3cd';
-                log('MQTT connection closed. Retrying in 5 seconds...');
-                if (intervalId) clearInterval(intervalId);
-                isRunning = false;
-                setTimeout(connectMQTT, 5000);
-            });
+  <script>
+    // MQTT broker connection details
+    const brokerURL = "wss://mqtt-dashboard.com:8884/mqtt"; // WebSocket URL for the broker
+    const client = mqtt.connect(brokerURL);
+
+    const statusDiv = document.getElementById("status");
+    const messageLogDiv = document.getElementById("messageLog");
+    const uidInput = document.getElementById("uid");
+    const intervalInput = document.getElementById("interval");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const heatmapCanvas = document.getElementById("heatmapCanvas");
+    const heatmapCtx = heatmapCanvas.getContext("2d");
+
+    let publishInterval = null;
+
+    // Chart.js setup
+    const ctx = document.getElementById("sensorChart").getContext("2d");
+    const sensorChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        datasets: Array.from({ length: 9 }, (_, i) => ({
+          label: `Sensor ${i + 1}`,
+          data: [], // Will be array of {x: time, y: value}
+          borderColor: `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 1)`,
+          backgroundColor: "rgba(0,0,0,0)",
+          borderWidth: 1,
+        })),
+      },
+      options: {
+        responsive: true,
+        animation: false, // Disable smooth animation
+        plugins: {
+          legend: { display: true },
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: {
+              unit: 'second',
+              displayFormats: {
+                second: 'HH:mm:ss'
+              }
+            },
+            title: {
+              display: true,
+              text: "Time",
+            },
+          },
+          y: {
+            title: {
+              display: true,
+              text: "Sensor Value",
+            },
+            min: 0,
+            max: 4095,
+          },
+        },
+      },
+    });
+
+    // Update connection status
+    client.on("connect", () => {
+      statusDiv.textContent = "Status: Connected to broker";
+      statusDiv.style.color = "green";
+    });
+
+    client.on("error", (err) => {
+      statusDiv.textContent = `Status: Connection error - ${err.message}`;
+      statusDiv.style.color = "red";
+    });
+
+    client.on("offline", () => {
+      statusDiv.textContent = "Status: Offline";
+      statusDiv.style.color = "red";
+    });
+
+    let currentPercentage = 0; // Default to 0%
+    let currentPattern = null; // No pattern initially
+
+    const patterns = {
+      'W': [1, 1, 1, 1, 1, 1, 1, 1, 1],
+      'A': [1, 1, 0.1, 1, 1, 0.5, 0.1, 1, 0.5],
+      'B': [1, 1, 0.1, 0.5, 0.5, 0.5, 1, 1, 0.1],
+      'T': [0.2, 0.2, 0.1, 0.1, 0.2, 0.2, 0.2, 0.5, 0.2],
+      'F': [0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.1],
+      
+    };
+
+    // Function to set pattern and percentage
+    function setPatternAndPercentage(pattern, percentage) {
+      currentPattern = patterns[pattern];
+      currentPercentage = percentage;
+      messageLogDiv.textContent = `Message Log: Set to Pattern ${pattern} at ${percentage}%.`;
+      messageLogDiv.style.color = "blue";
+    }
+    // Function to apply custom percentage
+    function applyCustomPercent(patternKey) {
+      const input = document.getElementById(`customPercent${patternKey}`).value;
+      const percentage = parseFloat(input);
+      if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+        alert('Please enter a valid percentage between 0 and 100.');
+        return;
+      }
+      setPatternAndPercentage(patternKey, percentage);
+    }
+
+    // Function to generate sensor raw data array (same as before)
+    function generateSensorRawData() {
+      const maxValue = 4095;
+      const scale = currentPercentage / 100;
+      if (currentPattern) {
+        return currentPattern.map(ratio => {
+          const base = ratio * scale * maxValue;
+          const noise = Math.floor(Math.random() * 51); // 0-50
+          let value = base + noise;
+          value = Math.max(0, Math.min(maxValue, value));
+          return Math.floor(value);
+        });
+      } else {
+        // Fallback to uniform percentage
+        return Array.from({ length: 9 }, () => {
+          const base = scale * maxValue;
+          const noise = Math.floor(Math.random() * 51); // 0-50
+          let value = base + noise;
+          value = Math.max(0, Math.min(maxValue, value));
+          return Math.floor(value);
+        });
+      }
+    }
+
+    // Function to draw the heatmap
+    const drawHeatmap = (data) => {
+      const cellSize = 100; // Each cell is 100x100 pixels
+      for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 3; col++) {
+          const value = data[row * 3 + col];
+          const intensity = Math.floor((value / 4095) * 255); // Scale value to 0-255 for color intensity
+          heatmapCtx.fillStyle = `rgb(${intensity}, 0, ${255 - intensity})`; // Heatmap color (red to blue)
+          heatmapCtx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+
+          // Add text value in the cell
+          heatmapCtx.fillStyle = "white";
+          heatmapCtx.font = "16px Arial";
+          heatmapCtx.fillText(value, col * cellSize + 35, row * cellSize + 55);
         }
+      }
+    };
 
-        function generateSensorData() {
-            const data = [];
-            
-            switch(currentMode) {
-                case 'normal':
-                    for(let i = 0; i < 9; i++) {
-                        data.push(Math.floor(Math.random() * 1000) + 2000); // 2000-3000 range
-                    }
-                    break;
-                    
-                case 'high':
-                    for(let i = 0; i < 9; i++) {
-                        data.push(Math.floor(Math.random() * 500) + 3500); // 3500-4000 range
-                    }
-                    break;
-                    
-                case 'random':
-                    for(let i = 0; i < 9; i++) {
-                        data.push(Math.floor(Math.random() * 4096)); // 0-4095 full range
-                    }
-                    break;
-                    
-                case 'low':
-                    for(let i = 0; i < 9; i++) {
-                        data.push(Math.floor(Math.random() * 800) + 100); // 100-900 range
-                    }
-                    break;
-                    
-                case 'spike':
-                    for(let i = 0; i < 9; i++) {
-                        // 80% chance normal, 20% chance spike
-                        if(Math.random() < 0.8) {
-                            data.push(Math.floor(Math.random() * 1000) + 2000);
-                        } else {
-                            data.push(Math.floor(Math.random() * 500) + 3800); // Spike values
-                        }
-                    }
-                    break;
-            }
-            
-            return data;
-        }
+    // Function to start publishing data
+    const startPublishing = () => {
+      const uid = uidInput.value.trim();
+      const interval = parseInt(intervalInput.value.trim(), 10);
 
-        function updateMatrixDisplay(data) {
-            const cells = document.querySelectorAll('.sensor-cell');
-            data.forEach((value, index) => {
-                cells[index].textContent = value;
-                // Color coding based on value
-                const intensity = value / 4095;
-                const red = Math.floor(255 * intensity);
-                const blue = Math.floor(255 * (1 - intensity));
-                cells[index].style.backgroundColor = `rgb(${red}, 100, ${blue})`;
-                cells[index].style.color = intensity > 0.5 ? 'white' : 'black';
-            });
-        }
+      if (!uid) {
+        alert("Please provide a valid UID.");
+        return;
+      }
 
-        function transmitData() {
-            if (!client || !client.connected) return;
+      if (isNaN(interval) || interval < 100) {
+        alert("Please enter a valid interval (minimum 100 ms).");
+        return;
+      }
 
-            const uid = document.getElementById('uid').value || '1';
-            const sensorData = generateSensorData();
-            const timestamp = Math.floor(new Date().getTime() / 1000);
-            
-            const message = {
-                ts: timestamp,
-                sensor: {
-                    data: sensorData
-                }
-            };
+      // Disable the start button and enable the stop button
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
 
-            const topic = `hkust/ece/enose/${uid}`;
-            
-            client.publish(topic, JSON.stringify(message), function(error) {
-                if (error) {
-                    log('Publish error: ' + error.message);
-                } else {
-                    log(`Published to ${topic}: [${sensorData.join(', ')}]`);
-                    updateMatrixDisplay(sensorData);
-                }
-            });
-        }
+      // Clear any existing interval
+      if (publishInterval) clearInterval(publishInterval);
 
-        function setMode(mode) {
-            currentMode = mode;
-            log(`Mode changed to: ${mode}`);
-            
-            // Update button states
-            document.querySelectorAll('.controls button').forEach(btn => {
-                btn.style.opacity = '0.6';
-            });
-            event.target.style.opacity = '1';
-        }
+      // Start sending data
+      publishInterval = setInterval(() => {
+        const path = `hkust/ece/enose/${uid}`;
 
-        function startTransmission() {
-            if (isRunning) return;
-            if (intervalId) clearInterval(intervalId);
-            
-            const sampleRate = parseInt(document.getElementById('sampleRate').value) || 1000;
-            intervalId = setInterval(transmitData, sampleRate);
-            isRunning = true;
-            log(`Started transmission with ${sampleRate}ms interval`);
-        }
+        // Generate data for each topic
+        const now = Date.now();
+        const timestamp = (now / 1000).toFixed(2); // Keep for publishing
+        const timeForChart = now; // Use milliseconds for chart
+        const sensorPx = [3, 3];
+        const sensorRange = [0, 4095];
+        const sensorRawData = generateSensorRawData(); // Use new function
 
-        function stopTransmission() {
-            if (!isRunning) return;
-            if (intervalId) clearInterval(intervalId);
-            isRunning = false;
-            log('Stopped transmission');
-        }
+        // Publish topics
+        client.publish(`${path}/timestamp`, timestamp.toString());
+        client.publish(`${path}/sensor/px`, JSON.stringify(sensorPx));
+        client.publish(`${path}/sensor/range`, JSON.stringify(sensorRange));
+        client.publish(`${path}/sensor/rawdata`, JSON.stringify(sensorRawData));
 
-        function log(message) {
-            const logElement = document.getElementById('log');
-            const timestamp = new Date().toLocaleTimeString();
-            logElement.innerHTML += `[${timestamp}] ${message}\n`;
-            logElement.scrollTop = logElement.scrollHeight;
-        }
+        // Update the log
+        messageLogDiv.textContent = `Message Log: Published data with timestamp ${timestamp}.`;
+        messageLogDiv.style.color = "green";
 
-        // Event listeners
-        document.getElementById('sampleRate').addEventListener('change', function() {
-            if (isRunning) {
-                startTransmission();
-            }
+        // Update the chart
+        sensorRawData.forEach((value, index) => {
+          sensorChart.data.datasets[index].data.push({ x: timeForChart, y: value });
+          if (sensorChart.data.datasets[index].data.length > 20) {
+            sensorChart.data.datasets[index].data.shift(); // Keep the chart limited to the last 20 entries
+          }
         });
 
-        // Initialize
-        connectMQTT();
-        
-        // Set default mode
-        document.querySelector('.normal').style.opacity = '1';
-        document.querySelectorAll('.controls button:not(.normal)').forEach(btn => {
-            btn.style.opacity = '0.6';
-        });
-    </script>
+        sensorChart.update();
+
+        // Update the heatmap
+        drawHeatmap(sensorRawData);
+      }, interval);
+    };
+
+    // Function to stop publishing data
+    const stopPublishing = () => {
+      if (publishInterval) {
+        clearInterval(publishInterval);
+        publishInterval = null;
+      }
+
+      // Enable the start button and disable the stop button
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+
+      messageLogDiv.textContent = "Message Log: Publishing stopped.";
+      messageLogDiv.style.color = "#333";
+    };
+
+    // Attach event listeners to buttons
+    startBtn.addEventListener("click", startPublishing);
+    stopBtn.addEventListener("click", stopPublishing);
+  </script>
 </body>
 </html>
