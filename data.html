@@ -107,7 +107,7 @@
         <tbody>
           <tr>
             <td>W</td>
-            <td><button onclick="setPatternAndPercentage('W', 10)">100%</button></td>
+            <td><button onclick="setPatternAndPercentage('W', 10)">1</button></td>
             <!-- <td><button onclick="setPatternAndPercentage('W', 30)">30%</button></td>
             <td><button onclick="setPatternAndPercentage('W', 60)">60%</button></td>
             <td><button onclick="setPatternAndPercentage('W', 90)">90%</button></td>
@@ -280,7 +280,7 @@
     //   'F': [0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.1],
     // };
     const patterns = {
-    'W': [0.003, 0.009, 0.047, 0.018, 0.023, 0.036, 0.027, 0.098, 0.022],
+    'W': [0.003, 0.009, 0.007, 0.008, 0.003, 0.006, 0.007, 0.008, 0.002],
     'A': [0.912, 0.987, 0.102, 0.935, 0.944, 0.522, 0.108, 0.958, 0.482],
     'B': [0.942, 0.971, 0.105, 0.482, 0.478, 0.513, 0.958, 0.941, 0.102],
     'T': [0.211, 0.203, 0.098, 0.101, 0.195, 0.218, 0.193, 0.506, 0.198],
@@ -322,20 +322,19 @@
       'F': [0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.05]
     };
     function generateSensorRawData() {
-      const maxValue = 1;
       const scale = currentPercentage / 100;
       let generatedBases;
       let alphas = emaAlphas[currentPattern] || Array(9).fill(0.1); // Default alpha 0.1 if no pattern
     
       if (currentPattern) {
         generatedBases = currentPattern.map(ratio => {
-          const base = ratio * scale * maxValue;
+          const base = ratio * scale;
           return base;
         });
       } else {
         // Fallback to uniform percentage
         generatedBases = Array.from({ length: 9 }, () => {
-          const base = scale * maxValue;
+          const base = scale;
           return base;
         });
       }
@@ -350,11 +349,11 @@
     
       // Add noise after EMA
       const finalValues = smoothedValues.map(ema => {
-        const noise = Math.floor(Math.random() * maxValue * scale); // 0-50
+        const noise = Math.random() *(scale/10+0.01); // 0-50
         let value = ema + noise;
-        value = Math.max(0, Math.min(maxValue, value));
+        value = Math.max(0, Math.min(1, value));
         // Normalize to 0-1
-        return value / maxValue;
+        return value;
       });
     
       return finalValues;
