@@ -82,12 +82,12 @@
 
     <div style="display: flex; justify-content: space-around; margin-top: 20px;">
       <div>
-        <h2>Sensor Heatmap (3x3)</h2>
-        <canvas id="heatmapCanvas" width="300" height="300" style="border: 1px solid black;"></canvas>
+        <h2>Sensor Array</h2>
+        <canvas id="heatmapCanvas" width="300" height="300" style="border: 0px solid black;"></canvas>
       </div>
       <div>
-        <h2>PCA 2D Plot</h2>
-        <canvas id="pcaChart" width="300" height="300" style="border: 1px solid black;"></canvas>
+        <h2>Dimension reduction 2D</h2>
+        <canvas id="pcaChart" width="300" height="300" style="border: 0px solid black;"></canvas>
       </div>
     </div>
 
@@ -178,13 +178,18 @@
       type: "scatter",
       data: {
         datasets: [{
-          label: "PCA Point",
+          label: "",  // Remove label text
           data: [],
           backgroundColor: "red",
           pointRadius: 5
         }]
       },
       options: {
+        plugins: {
+          legend: {
+            display: false  // Hide the legend
+          }
+        },
         scales: {
           x: {
             title: { display: true, text: "PC1" },
@@ -488,7 +493,3 @@
   </script>
 </body>
 </html>
-
-
-
-
