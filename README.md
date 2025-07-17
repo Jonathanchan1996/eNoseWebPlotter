@@ -32,21 +32,13 @@ In short, all the app there are `html`.
 ```
 
 Topic approach 
-```
 
-{path} = hkust/ece/enose/{uid}
-
-{path}/timestamp
-
-{path}/sensor
-{path}/sensor/px
-{path}/sensor/range
-{path}/sensor/rawdata
-
-{path}/classify
-{path}/classify/method
-{path}/classify/dimension
-{path}/classify/point
-
-
-```
+| Topic | Type | Description |
+| --- | --- | --- |
+| {path}/timestamp | int | timestamp of each data |
+| {path}/sensor/px | array of int | pixel of the sensor |
+| {path}/sensor/range | array of int | range of the sensor |
+| {path}/sensor/rawdata | array of int | raw data of the sensor |
+| {path}/classify/method | string | classification method |
+| {path}/classify/dimension | int | classification dimension |
+| {path}/classify/point | array of int | classification point |
