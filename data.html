@@ -403,7 +403,29 @@
         const pc2 = sensorData.reduce((sum, val, i) => sum + val * pcaComponents[1][i], 0);
         return { x: pc1, y: pc2 };
     }
-    // Function to start publishing data
+    
+    // Add base points for patterns
+    const baseColors = {
+      'W': 'rgba(31, 119, 180, 1.0)',    // Muted blue
+      'A': 'rgba(255, 127, 14, 1.0)',    // Muted orange  
+      'B': 'rgba(44, 160, 44, 1.0)',     // Muted green
+      'T': 'rgba(214, 39, 40, 1.0)',     // Muted red
+      'F': 'rgba(148, 103, 189, 1.0)'    // Muted purple
+    };
+    
+    Object.keys(patterns).forEach(key => {
+      const sensorData = patterns[key]; // Use ratios as is (assuming they represent 100% scale)
+      const point = computePCAProjection(sensorData);
+      pcaChart.data.datasets.push({
+        label: `${key} Base`,
+        data: [point],
+        backgroundColor: baseColors[key].replace('1.0', '0.3'), // Add transparency
+        pointRadius: 10,
+        pointStyle: 'circle',
+      });
+    });
+    pcaChart.update();
+    // Function to start publishing
     function startPublishing() {
         setPatternAndPercentage('W', 10);
         const uid = uidInput.value.trim();
@@ -415,7 +437,7 @@
         }
     
         if (isNaN(interval) || interval < 100) {
-          alert("Please enter a valid interval (minimum 100 ms).");
+          alert("Please enter a valid interval (minimum 100 ms)."); 
           return;
         }
     
@@ -425,6 +447,10 @@
     
         // Clear any existing interval
         if (publishInterval) clearInterval(publishInterval);
+    
+        const path = `hkust/ece/enose/${uid}`;
+        // Publish patterns once
+        client.publish(`${path}/patterns`, JSON.stringify(patterns));
     
         // Start sending data
         publishInterval = setInterval(() => {
