@@ -86,12 +86,12 @@
         <canvas id="heatmapCanvas" width="300" height="300" style="border: 0px solid black;"></canvas>
       </div>
       <div>
-        <h2>Dimension reduction 2D</h2>
+        <h2>Dimension Reduction 2D</h2>
         <canvas id="pcaChart" width="300" height="300" style="border: 0px solid black;"></canvas>
       </div>
     </div>
 
-    <div class="pattern-table" style="margin-top: 20px;">
+    <div class="pattern-table" style="margin-top: 1rem;">
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr>
@@ -100,7 +100,8 @@
             <th>30%</th>
             <th>60%</th>
             <th>90%</th>
-            <th>Custom % (0-100)</th>
+            <th>Custom %</th>
+            <th>(0-100)</th>
           </tr>
         </thead>
         <tbody>
@@ -193,13 +194,13 @@
         scales: {
           x: {
             title: { display: true, text: "PC1" },
-            min: -6,
-            max: 6
+            min: -1,
+            max: 3
           },
           y: {
             title: { display: true, text: "PC2" },
-            min: -3,
-            max: 3
+            min: -1,
+            max: 1
           }
         }
       }
@@ -349,7 +350,7 @@
     
       // Add noise after EMA
       const finalValues = smoothedValues.map(ema => {
-        const noise = Math.floor(Math.random() * 51); // 0-50
+        const noise = Math.floor(Math.random() * maxValue * 0.1); // 0-50
         let value = ema + noise;
         value = Math.max(0, Math.min(maxValue, value));
         // Normalize to 0-1
