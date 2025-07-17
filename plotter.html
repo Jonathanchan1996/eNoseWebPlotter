@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>eNose Plotter</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .container { max-width: 1200px; margin: auto; }
+    canvas { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>eNose Plotter</h1>
+    <div>
+      <label for="uid">UID:</label>
+      <input type="text" id="uid" value="a1">
+      <button id="enterBtn">Enter</button>
+    </div>
+    <div>
+      <h2>Sensor Array (Heatmap)</h2>
+      <canvas id="heatmap" width="300" height="300"></canvas>
+    </div>
+    <div>
+      <h2>Dimension Reduction 2D (PCA)</h2>
+      <canvas id="pcaChart"></canvas>
+    </div>
+    <div>
+      <h2>Sensor Data Plot (Timeseries)</h2>
+      <canvas id="sensorChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const brokerURL = "wss://mqtt-dashboard.com:8884/mqtt";
+    let client;
+    let currentUID = 'a1';
+    let sensorHistories = Array.from({ length: 9 }, () => []);
+    let pcaData = [];
+    let patterns = {};
+
+    const pcaComponents = [
+      [0.36556958, 0.36627698, 0.28301237, 0.35354425, 0.35678054, 0.37234382, 0.18345269, 0.37335322, 0.29686821],
+      [0.15359641, 0.04513628, 0.24236335, -0.25835382, -0.27349091, 0.0581136, 0.73249712, 0.08806563, -0.47581731]
+    ];
+
+    // Charts
+    const sensorCtx = document.getElementById('sensorChart').getContext('2d');
+    const sensorChart = new Chart(sensorCtx, {
+      type: 'line',
+      data: {
+        datasets: Array.from({ length: 9 }, (_, i) => ({
+          label: `Sensor ${i + 1}`,
+          data: [],
+          borderColor: `hsl(${i * 40}, 70%, 50%)`,
+          fill: false
+        }))
+      },
+      options: {
+        scales: {
+          x: { type: 'time', time: { unit: 'second' } },
+          y: { min: 0, max: 1 }
+        }
+      }
+    });
+
+    const pcaCtx = document.getElementById('pcaChart').getContext('2d');
+    const pcaChart = new Chart(pcaCtx, {
+      type: 'scatter',
+      data: {
+        datasets: [{
+          label: 'Current Point',
+          data: [],
+          backgroundColor: 'black',
+          pointRadius: 5
+        }]
+      },
+      options: {
+        scales: {
+          x: { title: { display: true, text: 'PC1' }, min: -1, max: 3 },
+          y: { title: { display: true, text: 'PC2' }, min: -1, max: 1 }
+        }
+      }
+    });
+
+    const heatmapCanvas = document.getElementById('heatmap');
+    const heatmapCtx = heatmapCanvas.getContext('2d');
+
+    // GnBu color palette
+    const gnBuColors = [
+      [247, 252, 253], [224, 236, 244], [191, 211, 230], [158, 188, 218],
+      [140, 150, 198], [140, 107, 177], [136, 65, 157], [129, 15, 124], [77, 0, 75]
+    ];
+
+    function drawHeatmap(sensorData) {
+      const cellSize = 100;
+      const grid = [
+        [sensorData[0], sensorData[1], sensorData[2]],
+        [sensorData[3], sensorData[4], sensorData[5]],
+        [sensorData[6], sensorData[7], sensorData[8]]
+      ];
+      grid.forEach((row, rowIdx) => {
+        row.forEach((value, colIdx) => {
+          const colorIndex = Math.min(Math.floor(value * (gnBuColors.length - 1)), gnBuColors.length - 1);
+          const [r, g, b] = gnBuColors[colorIndex];
+          heatmapCtx.fillStyle = `rgb(${r},${g},${b})`;
+          heatmapCtx.fillRect(colIdx * cellSize, rowIdx * cellSize, cellSize, cellSize);
+          const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
+          heatmapCtx.fillStyle = brightness > 150 ? 'black' : 'white';
+          heatmapCtx.font = "16px Arial";
+          heatmapCtx.fillText(value.toFixed(3), colIdx * cellSize + 35, rowIdx * cellSize + 55);
+        });
+      });
+    }
+
+    function connectAndSubscribe() {
+      if (client) client.end();
+      client = mqtt.connect(brokerURL);
+      client.on('connect', () => {
+        const path = `hkust/ece/enose/${currentUID}`;
+        client.subscribe(`${path}/timestamp`);
+        client.subscribe(`${path}/sensor/rawdata`);
+        client.subscribe(`${path}/classify/point`);
+        client.subscribe(`${path}/patterns`);
+      });
+      client.on('message', (topic, message) => {
+        const path = `hkust/ece/enose/${currentUID}`;
+        if (topic === `${path}/timestamp`) {
+          // Use timestamp if needed
+        } else if (topic === `${path}/sensor/rawdata`) {
+          const sensorRawData = JSON.parse(message.toString());
+          const now = Date.now();
+          sensorRawData.forEach((value, index) => {
+            sensorChart.data.datasets[index].data.push({ x: now, y: value });
+            if (sensorChart.data.datasets[index].data.length > 20) sensorChart.data.datasets[index].data.shift();
+          });
+          sensorChart.update();
+          drawHeatmap(sensorRawData);
+        } else if (topic === `${path}/classify/point`) {
+          const [x, y] = JSON.parse(message.toString());
+          pcaChart.data.datasets[0].data = [{ x, y }];
+          pcaChart.update();
+        } else if (topic === `${path}/patterns`) {
+          patterns = JSON.parse(message.toString());
+          // Optionally plot base points on PCA
+          const baseColors = { 'W': 'blue', 'B': 'green', 'T': 'red', 'F': 'orange' };
+          Object.keys(patterns).forEach((key, index) => {
+            const point = {
+              x: patterns[key].reduce((sum, val, i) => sum + val * pcaComponents[0][i], 0),
+              y: patterns[key].reduce((sum, val, i) => sum + val * pcaComponents[1][i], 0)
+            };
+            pcaChart.data.datasets.push({
+              label: `${key} Base`,
+              data: [point],
+              backgroundColor: baseColors[key],
+              pointRadius: 8,
+              pointStyle: 'triangle'
+            });
+          });
+          pcaChart.update();
+        }
+      });
+    }
+
+    document.getElementById('enterBtn').addEventListener('click', () => {
+      currentUID = document.getElementById('uid').value.trim();
+      connectAndSubscribe();
+    });
+
+    // Initial connection
+    connectAndSubscribe();
+  </script>
+</body>
+</html>
