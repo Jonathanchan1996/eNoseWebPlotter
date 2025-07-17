@@ -3,15 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MQTT Publisher</title>
+  <title>MQTT Publisher with Heatmap and Line Plot</title>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
     }
     .container {
-      max-width: 600px;
+      max-width: 800px;
       margin: 0 auto;
     }
     input, button {
@@ -40,21 +43,52 @@
     .message-log {
       color: #333;
     }
+    .interval-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .interval-control input {
+      width: auto;
+      flex: 1;
+    }
+    .heatmap-container {
+      margin-top: 20px;
+      text-align: center;
+    }
+    canvas {
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>MQTT Publisher</h1>
-    <label for="topic">Topic:</label>
-    <input type="text" id="topic" placeholder="Enter the topic (e.g., test/topic)" />
+    <h1>MQTT Publisher with Heatmap and Line Plot</h1>
+    <div>
+      <label for="uid">UID:</label>
+      <input type="text" id="uid" value="a1" />
+    </div>
 
-    <label for="message">Message:</label>
-    <input type="text" id="message" placeholder="Enter the message to publish" />
+    <div class="interval-control">
+      <label for="interval">Publish Interval (ms):</label>
+      <input type="number" id="interval" value="1000" min="100" />
+    </div>
 
-    <button id="publishBtn">Publish Message</button>
+    <button id="startBtn">Start Publishing</button>
+    <button id="stopBtn" disabled>Stop Publishing</button>
 
     <div class="status" id="status">Status: Not Connected</div>
     <div class="message-log" id="messageLog">Message Log: No messages published yet.</div>
+
+    <div class="heatmap-container">
+      <h2>Sensor Heatmap (3x3)</h2>
+      <canvas id="heatmapCanvas" width="300" height="300" style="border: 1px solid black;"></canvas>
+    </div>
+
+    <div>
+      <h2>Sensor Data Plot</h2>
+      <canvas id="sensorChart"></canvas>
+    </div>
   </div>
 
   <script>
@@ -64,9 +98,59 @@
 
     const statusDiv = document.getElementById("status");
     const messageLogDiv = document.getElementById("messageLog");
-    const topicInput = document.getElementById("topic");
-    const messageInput = document.getElementById("message");
-    const publishBtn = document.getElementById("publishBtn");
+    const uidInput = document.getElementById("uid");
+    const intervalInput = document.getElementById("interval");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const heatmapCanvas = document.getElementById("heatmapCanvas");
+    const heatmapCtx = heatmapCanvas.getContext("2d");
+
+    let publishInterval = null;
+
+    // Chart.js setup
+    const ctx = document.getElementById("sensorChart").getContext("2d");
+    const sensorChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        datasets: Array.from({ length: 9 }, (_, i) => ({
+          label: `Sensor ${i + 1}`,
+          data: [], // Will be array of {x: time, y: value}
+          borderColor: `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 1)`,
+          backgroundColor: "rgba(0,0,0,0)",
+          borderWidth: 1,
+        })),
+      },
+      options: {
+        responsive: true,
+        animation: false, // Disable smooth animation
+        plugins: {
+          legend: { display: true },
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: {
+              unit: 'second',
+              displayFormats: {
+                second: 'HH:mm:ss'
+              }
+            },
+            title: {
+              display: true,
+              text: "Time",
+            },
+          },
+          y: {
+            title: {
+              display: true,
+              text: "Sensor Value",
+            },
+            min: 0,
+            max: 4095,
+          },
+        },
+      },
+    });
 
     // Update connection status
     client.on("connect", () => {
@@ -84,26 +168,106 @@
       statusDiv.style.color = "red";
     });
 
-    // Publish button click event
-    publishBtn.addEventListener("click", () => {
-      const topic = topicInput.value.trim();
-      const message = messageInput.value.trim();
+    // Function to generate random data
+    const generateRandomData = () => {
+      return Math.floor(Math.random() * 4096); // Random number between 0-4095
+    };
 
-      if (!topic || !message) {
-        alert("Please provide both topic and message!");
+    // Function to draw the heatmap
+    const drawHeatmap = (data) => {
+      const cellSize = 100; // Each cell is 100x100 pixels
+      for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 3; col++) {
+          const value = data[row * 3 + col];
+          const intensity = Math.floor((value / 4095) * 255); // Scale value to 0-255 for color intensity
+          heatmapCtx.fillStyle = `rgb(${intensity}, 0, ${255 - intensity})`; // Heatmap color (red to blue)
+          heatmapCtx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+
+          // Add text value in the cell
+          heatmapCtx.fillStyle = "white";
+          heatmapCtx.font = "16px Arial";
+          heatmapCtx.fillText(value, col * cellSize + 35, row * cellSize + 55);
+        }
+      }
+    };
+
+    // Function to start publishing data
+    const startPublishing = () => {
+      const uid = uidInput.value.trim();
+      const interval = parseInt(intervalInput.value.trim(), 10);
+
+      if (!uid) {
+        alert("Please provide a valid UID.");
         return;
       }
 
-      client.publish(topic, message, (err) => {
-        if (err) {
-          messageLogDiv.textContent = `Message Log: Failed to publish message - ${err.message}`;
-          messageLogDiv.style.color = "red";
-        } else {
-          messageLogDiv.textContent = `Message Log: Message successfully published to topic "${topic}".`;
-          messageLogDiv.style.color = "green";
-        }
-      });
-    });
+      if (isNaN(interval) || interval < 100) {
+        alert("Please enter a valid interval (minimum 100 ms).");
+        return;
+      }
+
+      // Disable the start button and enable the stop button
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+
+      // Clear any existing interval
+      if (publishInterval) clearInterval(publishInterval);
+
+      // Start sending data
+      publishInterval = setInterval(() => {
+        const path = `hkust/ece/enose/${uid}`;
+
+        // Generate data for each topic
+        const now = Date.now();
+        const timestamp = (now / 1000).toFixed(2); // Keep for publishing
+        const timeForChart = now; // Use milliseconds for chart
+        const sensorPx = [3, 3];
+        const sensorRange = [0, 4095];
+        const sensorRawData = Array.from({ length: 9 }, generateRandomData); // Generate 9 random numbers
+
+        // Publish topics
+        client.publish(`${path}/timestamp`, timestamp.toString());
+        client.publish(`${path}/sensor/px`, JSON.stringify(sensorPx));
+        client.publish(`${path}/sensor/range`, JSON.stringify(sensorRange));
+        client.publish(`${path}/sensor/rawdata`, JSON.stringify(sensorRawData));
+
+        // Update the log
+        messageLogDiv.textContent = `Message Log: Published data with timestamp ${timestamp}.`;
+        messageLogDiv.style.color = "green";
+
+        // Update the chart
+        sensorRawData.forEach((value, index) => {
+          sensorChart.data.datasets[index].data.push({ x: timeForChart, y: value });
+          if (sensorChart.data.datasets[index].data.length > 20) {
+            sensorChart.data.datasets[index].data.shift(); // Keep the chart limited to the last 20 entries
+          }
+        });
+
+        sensorChart.update();
+
+        // Update the heatmap
+        drawHeatmap(sensorRawData);
+      }, interval);
+    };
+
+    // Function to stop publishing data
+    const stopPublishing = () => {
+      if (publishInterval) {
+        clearInterval(publishInterval);
+        publishInterval = null;
+      }
+
+      // Enable the start button and disable the stop button
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+
+      messageLogDiv.textContent = "Message Log: Publishing stopped.";
+      messageLogDiv.style.color = "#333";
+    };
+
+    // Attach event listeners to buttons
+    startBtn.addEventListener("click", startPublishing);
+    stopBtn.addEventListener("click", stopPublishing);
   </script>
 </body>
 </html>
