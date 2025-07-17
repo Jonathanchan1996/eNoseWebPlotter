@@ -37,12 +37,12 @@ Topic approach
 {path} = hkust/ece/enose/{uid}
 ```
 
-| Topic | Type | Description |
+| Topic | Type | Description | Example |
 | --- | --- | --- |
-| {path}/timestamp | int | timestamp of each data |
-| {path}/sensor/px | array of int | pixel of the sensor |
-| {path}/sensor/range | array of int | range of the sensor |
-| {path}/sensor/rawdata | array of int | raw data of the sensor |
-| {path}/classify/method | string | classification method |
-| {path}/classify/dimension | int | classification dimension |
-| {path}/classify/point | array of int | classification point |
+| {path}/timestamp | int | timestamp of each data | 1752658312 |
+| {path}/sensor/px | array of int | pixel of the sensor | [3,3] |
+| {path}/sensor/range | array of int | range of the sensor | [0,4095] |
+| {path}/sensor/rawdata | array of int | raw data of the sensor | [0,10,20,30,40,50,60,70,80] |
+| {path}/classify/method | string | classification method | "kmeans" |
+| {path}/classify/dimension | int | classification dimension | 2 |
+| {path}/classify/point | array of int | classification point | [0,1] |
