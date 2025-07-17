@@ -61,7 +61,7 @@
         datasets: Array.from({ length: 9 }, (_, i) => ({
           label: `Sensor ${i + 1}`,
           data: [],
-          borderColor: `hsl(${i * 40}, 70%, 50%)`,
+          borderColor: `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 1)`,
           fill: false
         }))
       },
@@ -169,7 +169,7 @@
           if (pcaComponents && !basePointsPlotted) {
             const baseColors = {
               'W': 'blue',
-              'A': 'purple',  // Added color for A
+              'A': 'purple',
               'B': 'green',
               'T': 'red',
               'F': 'orange'
@@ -194,9 +194,14 @@
           pcaComponents = JSON.parse(message.toString());
           // If patterns already received, plot base points
           if (patterns && Object.keys(patterns).length > 0 && !basePointsPlotted) {
-            // Same plotting code as above
-            const baseColors = { 'W': 'blue', 'B': 'green', 'T': 'red', 'F': 'orange' };
-            Object.keys(patterns).forEach((key, index) => {
+            const baseColors = {
+              'W': 'blue',
+              'A': 'purple',
+              'B': 'green',
+              'T': 'red',
+              'F': 'orange'
+            };
+            Object.keys(patterns).forEach((key) => {
               const point = {
                 x: patterns[key].reduce((sum, val, i) => sum + val * pcaComponents[0][i], 0),
                 y: patterns[key].reduce((sum, val, i) => sum + val * pcaComponents[1][i], 0)

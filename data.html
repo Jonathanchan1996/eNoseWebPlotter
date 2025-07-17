@@ -472,8 +472,8 @@
           client.publish(`${path}/sensor/px`, JSON.stringify(sensorPx));
           client.publish(`${path}/sensor/range`, JSON.stringify(sensorRange));
           client.publish(`${path}/sensor/rawdata`, JSON.stringify(sensorRawData));
-          // Publish patterns every interval
-          client.publish(`${path}/patterns`, JSON.stringify(patterns));
+          // Publish patterns and pca_components every interval
+          client.publish(`${path}/classify/pca_components`, JSON.stringify(pcaComponents));
     
           // Update the log
           messageLogDiv.textContent = `Message Log: Published data with timestamp ${timestamp}.`;
