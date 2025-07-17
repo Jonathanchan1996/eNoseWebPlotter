@@ -38,7 +38,7 @@ Topic approach
 ```
 
 | Topic | Type | Description | Example |
-| --- | --- | --- |
+| --- | --- | --- | --- |
 | {path}/timestamp | int | timestamp of each data | 1752658312 |
 | {path}/sensor/px | array of int | pixel of the sensor | [3,3] |
 | {path}/sensor/range | array of int | range of the sensor | [0,4095] |
