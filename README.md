@@ -31,30 +31,22 @@ I would like to build a realtime sensor plotter tools. The sensor is a 3x3 matri
 In short, all the app there are `html`. 
 ```
 
-```json
-{
-    "ts": 1752658312, 
-    "sensor": {
-        "px": [3,3], 
-        "range": [0,4095],
-        "data":[0,10,20,30,40,50,60,70,80]
-    }, 
-    "classify":{
-        "method": "pca", 
-        "dimension": 2, 
-        "point": [0,0],  
-        "" : 
-    }
-}
-
+Topic approach 
 ```
 
-Future task:
-```json
-{
-    "ts": 1752658312, 
-    "sensor": {
-        "data":[0,10,20,30,40,50,60,70,80]
-    },
-}
+{path} = hkust/ece/enose/{uid}
+
+{path}/timestamp
+
+{path}/sensor
+{path}/sensor/px
+{path}/sensor/range
+{path}/sensor/rawdata
+
+{path}/classify
+{path}/classify/method
+{path}/classify/dimension
+{path}/classify/point
+
+
 ```
