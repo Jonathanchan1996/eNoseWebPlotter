@@ -273,7 +273,7 @@
     let currentPattern = null; // No pattern initially
 
     // const patterns = {
-    //   'W': [0.05, 0.1, 0.1, 0.05, 0.1, 0.1, 0.05, 0.1, 0.1],
+    //   'W': [0.05, 0.1, 0.1, 0.05, 0.1, 0.1, 0.05, 0.1, `],
     //   'A': [1, 1, 0.1, 1, 1, 0.5, 0.1, 1, 0.5],
     //   'B': [1, 1, 0.1, 0.5, 0.5, 0.5, 1, 1, 0.1],
     //   'T': [0.2, 0.2, 0.1, 0.1, 0.2, 0.2, 0.2, 0.5, 0.2],
@@ -310,7 +310,7 @@
     }
 
     let sensorHistories = Array.from({ length: 9 }, () => []);
-    const windowSize = 10;
+    const windowSize = 5;
     let previousEMAs = Array.from({ length: 9 }, () => 0); // Initialize previous EMAs to 0
 
     // Function to generate sensor raw data array
@@ -322,7 +322,7 @@
       'F': [0.1, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.05]
     };
     function generateSensorRawData() {
-      const maxValue = 4095;
+      const maxValue = 1;
       const scale = currentPercentage / 100;
       let generatedBases;
       let alphas = emaAlphas[currentPattern] || Array(9).fill(0.1); // Default alpha 0.1 if no pattern
@@ -350,7 +350,7 @@
     
       // Add noise after EMA
       const finalValues = smoothedValues.map(ema => {
-        const noise = Math.floor(Math.random() * maxValue * 0.1); // 0-50
+        const noise = Math.floor(Math.random() * maxValue * scale); // 0-50
         let value = ema + noise;
         value = Math.max(0, Math.min(maxValue, value));
         // Normalize to 0-1
