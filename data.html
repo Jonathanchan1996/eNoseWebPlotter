@@ -80,70 +80,77 @@
     <div class="status" id="status">Status: Not Connected</div>
     <div class="message-log" id="messageLog">Message Log: No messages published yet.</div>
 
-    <div class="heatmap-container">
-      <h2>Sensor Heatmap (3x3)</h2>
-      <canvas id="heatmapCanvas" width="300" height="300" style="border: 1px solid black;"></canvas>
-      <div class="pattern-table" style="margin-top: 10px;">
-        <table style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr>
-              <th>Pattern</th>
-              <th>10%</th>
-              <th>30%</th>
-              <th>60%</th>
-              <th>90%</th>
-              <th>Custom % (0-100)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>W</td>
-              <td><button onclick="setPatternAndPercentage('W', 10)">100%</button></td>
-              <!-- <td><button onclick="setPatternAndPercentage('W', 30)">30%</button></td>
-              <td><button onclick="setPatternAndPercentage('W', 60)">60%</button></td>
-              <td><button onclick="setPatternAndPercentage('W', 90)">90%</button></td>
-              <td><input type="number" id="customPercentW" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
-              <td><button onclick="applyCustomPercent('W')">Apply</button></td> -->
-            </tr>
-            <tr>
-              <td>A</td>
-              <td><button onclick="setPatternAndPercentage('A', 10)">10%</button></td>
-              <td><button onclick="setPatternAndPercentage('A', 30)">30%</button></td>
-              <td><button onclick="setPatternAndPercentage('A', 60)">60%</button></td>
-              <td><button onclick="setPatternAndPercentage('A', 90)">90%</button></td>
-              <td><input type="number" id="customPercentA" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
-              <td><button onclick="applyCustomPercent('A')">Apply</button></td>
-            </tr>
-            <tr>
-              <td>B</td>
-              <td><button onclick="setPatternAndPercentage('B', 10)">10%</button></td>
-              <td><button onclick="setPatternAndPercentage('B', 30)">30%</button></td>
-              <td><button onclick="setPatternAndPercentage('B', 60)">60%</button></td>
-              <td><button onclick="setPatternAndPercentage('B', 90)">90%</button></td>
-              <td><input type="number" id="customPercentB" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
-              <td><button onclick="applyCustomPercent('B')">Apply</button></td>
-            </tr>
-            <tr>
-              <td>T</td>
-              <td><button onclick="setPatternAndPercentage('T', 10)">10%</button></td>
-              <td><button onclick="setPatternAndPercentage('T', 30)">30%</button></td>
-              <td><button onclick="setPatternAndPercentage('T', 60)">60%</button></td>
-              <td><button onclick="setPatternAndPercentage('T', 90)">90%</button></td>
-              <td><input type="number" id="customPercentT" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
-              <td><button onclick="applyCustomPercent('T')">Apply</button></td>
-            </tr>
-            <tr>
-              <td>F</td>
-              <td><button onclick="setPatternAndPercentage('F', 10)">10%</button></td>
-              <td><button onclick="setPatternAndPercentage('F', 30)">30%</button></td>
-              <td><button onclick="setPatternAndPercentage('F', 60)">60%</button></td>
-              <td><button onclick="setPatternAndPercentage('F', 90)">90%</button></td>
-              <td><input type="number" id="customPercentF" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
-              <td><button onclick="applyCustomPercent('F')">Apply</button></td>
-            </tr>
-          </tbody>
-        </table>
+    <div style="display: flex; justify-content: space-around; margin-top: 20px;">
+      <div>
+        <h2>Sensor Heatmap (3x3)</h2>
+        <canvas id="heatmapCanvas" width="300" height="300" style="border: 1px solid black;"></canvas>
       </div>
+      <div>
+        <h2>PCA 2D Plot</h2>
+        <canvas id="pcaChart" width="300" height="300" style="border: 1px solid black;"></canvas>
+      </div>
+    </div>
+
+    <div class="pattern-table" style="margin-top: 20px;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr>
+            <th>Pattern</th>
+            <th>10%</th>
+            <th>30%</th>
+            <th>60%</th>
+            <th>90%</th>
+            <th>Custom % (0-100)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>W</td>
+            <td><button onclick="setPatternAndPercentage('W', 10)">100%</button></td>
+            <!-- <td><button onclick="setPatternAndPercentage('W', 30)">30%</button></td>
+            <td><button onclick="setPatternAndPercentage('W', 60)">60%</button></td>
+            <td><button onclick="setPatternAndPercentage('W', 90)">90%</button></td>
+            <td><input type="number" id="customPercentW" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
+            <td><button onclick="applyCustomPercent('W')">Apply</button></td> -->
+          </tr>
+          <tr>
+            <td>A</td>
+            <td><button onclick="setPatternAndPercentage('A', 10)">10%</button></td>
+            <td><button onclick="setPatternAndPercentage('A', 30)">30%</button></td>
+            <td><button onclick="setPatternAndPercentage('A', 60)">60%</button></td>
+            <td><button onclick="setPatternAndPercentage('A', 90)">90%</button></td>
+            <td><input type="number" id="customPercentA" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
+            <td><button onclick="applyCustomPercent('A')">Apply</button></td>
+          </tr>
+          <tr>
+            <td>B</td>
+            <td><button onclick="setPatternAndPercentage('B', 10)">10%</button></td>
+            <td><button onclick="setPatternAndPercentage('B', 30)">30%</button></td>
+            <td><button onclick="setPatternAndPercentage('B', 60)">60%</button></td>
+            <td><button onclick="setPatternAndPercentage('B', 90)">90%</button></td>
+            <td><input type="number" id="customPercentB" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
+            <td><button onclick="applyCustomPercent('B')">Apply</button></td>
+          </tr>
+          <tr>
+            <td>T</td>
+            <td><button onclick="setPatternAndPercentage('T', 10)">10%</button></td>
+            <td><button onclick="setPatternAndPercentage('T', 30)">30%</button></td>
+            <td><button onclick="setPatternAndPercentage('T', 60)">60%</button></td>
+            <td><button onclick="setPatternAndPercentage('T', 90)">90%</button></td>
+            <td><input type="number" id="customPercentT" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
+            <td><button onclick="applyCustomPercent('T')">Apply</button></td>
+          </tr>
+          <tr>
+            <td>F</td>
+            <td><button onclick="setPatternAndPercentage('F', 10)">10%</button></td>
+            <td><button onclick="setPatternAndPercentage('F', 30)">30%</button></td>
+            <td><button onclick="setPatternAndPercentage('F', 60)">60%</button></td>
+            <td><button onclick="setPatternAndPercentage('F', 90)">90%</button></td>
+            <td><input type="number" id="customPercentF" min="0" max="100" placeholder="e.g. 50" style="width: 80px;"></td>
+            <td><button onclick="applyCustomPercent('F')">Apply</button></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <div>
@@ -165,6 +172,33 @@
     const stopBtn = document.getElementById("stopBtn");
     const heatmapCanvas = document.getElementById("heatmapCanvas");
     const heatmapCtx = heatmapCanvas.getContext("2d");
+
+    const pcaCtx = document.getElementById("pcaChart").getContext("2d");
+    const pcaChart = new Chart(pcaCtx, {
+      type: "scatter",
+      data: {
+        datasets: [{
+          label: "PCA Point",
+          data: [],
+          backgroundColor: "red",
+          pointRadius: 5
+        }]
+      },
+      options: {
+        scales: {
+          x: {
+            title: { display: true, text: "PC1" },
+            min: -6,
+            max: 6
+          },
+          y: {
+            title: { display: true, text: "PC2" },
+            min: -3,
+            max: 3
+          }
+        }
+      }
+    });
 
     let publishInterval = null;
 
@@ -246,6 +280,11 @@
     'T': [0.211, 0.203, 0.098, 0.101, 0.195, 0.218, 0.193, 0.506, 0.198],
     'F': [0.412, 0.097, 0.103, 0.097, 0.098, 0.094, 0.394, 0.305, 0.095],
     };
+    // PCA component matrix (2x9)
+    const pcaComponents = [
+    [0.36556958, 0.36627698, 0.28301237, 0.35354425, 0.35678054, 0.37234382, 0.18345269, 0.37335322, 0.29686821],
+    [0.15359641, 0.04513628, 0.24236335, -0.25835382, -0.27349091, 0.0581136, 0.73249712, 0.08806563, -0.47581731]
+    ];
     // Function to set pattern and percentage
     function setPatternAndPercentage(pattern, percentage) {
       currentPattern = patterns[pattern];
@@ -353,6 +392,12 @@
         }
       }
     };
+    // Function to compute PCA projection
+    function computePCAProjection(sensorData) {
+        const pc1 = sensorData.reduce((sum, val, i) => sum + val * pcaComponents[0][i], 0);
+        const pc2 = sensorData.reduce((sum, val, i) => sum + val * pcaComponents[1][i], 0);
+        return { x: pc1, y: pc2 };
+    }
     // Function to start publishing data
     function startPublishing() {
         setPatternAndPercentage('W', 10);
@@ -410,8 +455,17 @@
     
           // Update the heatmap
           drawHeatmap(sensorRawData);
-        }, interval);
-      };
+
+          // Compute and publish PCA point
+          const pcaPoint = computePCAProjection(sensorRawData);
+          client.publish(`${path}/classify/point`, JSON.stringify([pcaPoint.x, pcaPoint.y]));
+
+          // Update PCA chart with latest point
+          pcaChart.data.datasets[0].data = [pcaPoint];
+          pcaChart.update();
+
+          }, interval);
+        };
     
     // Function to stop publishing data
     const stopPublishing = () => {
@@ -434,3 +488,7 @@
   </script>
 </body>
 </html>
+
+
+
+
