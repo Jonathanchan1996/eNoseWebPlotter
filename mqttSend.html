@@ -1,71 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MQTT Sender</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MQTT Publisher</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    input, button {
+      margin: 10px 0;
+      padding: 10px;
+      width: 100%;
+      font-size: 16px;
+    }
+    button {
+      cursor: pointer;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .status, .message-log {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #f1f1f1;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .message-log {
+      color: #333;
+    }
+  </style>
 </head>
 <body>
-    <h1>MQTT Sender</h1>
-    <p>Broker: mqtt-dashboard.com:8884</p>
-    <p>Topic: hkust/ece/enose/</p>
-    <input type="text" id="message" placeholder="Enter message to send">
-    <button onclick="sendMessage()">Send</button>
-    <div id="status">Connecting...</div>
+  <div class="container">
+    <h1>MQTT Publisher</h1>
+    <label for="topic">Topic:</label>
+    <input type="text" id="topic" placeholder="Enter the topic (e.g., test/topic)" />
 
-    <script>
-        // Create a client instance
-        var client = new Paho.MQTT.Client("broker.hivemq.com", 8884, "sender-client-" + parseInt(Math.random() * 100, 10));
+    <label for="message">Message:</label>
+    <input type="text" id="message" placeholder="Enter the message to publish" />
 
-        // Set callback handlers
-        client.onConnectionLost = onConnectionLost;
-        client.onMessageArrived = onMessageArrived;
+    <button id="publishBtn">Publish Message</button>
 
-        // Connect the client
-        client.connect({
-            onSuccess: onConnect,
-            onFailure: function (responseObject) {
-                console.error("Connection failed: " + responseObject.errorMessage);
-                document.getElementById("status").innerHTML = "Connection failed: " + responseObject.errorMessage;
-            },
-            useSSL: true,
-            reconnect: true
-        });
+    <div class="status" id="status">Status: Not Connected</div>
+    <div class="message-log" id="messageLog">Message Log: No messages published yet.</div>
+  </div>
 
-        // Called when the client connects
-        function onConnect() {
-            document.getElementById("status").innerHTML = "Connected to broker";
+  <script>
+    // MQTT broker connection details
+    const brokerURL = "wss://mqtt-dashboard.com:8884/mqtt"; // WebSocket URL for the broker
+    const client = mqtt.connect(brokerURL);
+
+    const statusDiv = document.getElementById("status");
+    const messageLogDiv = document.getElementById("messageLog");
+    const topicInput = document.getElementById("topic");
+    const messageInput = document.getElementById("message");
+    const publishBtn = document.getElementById("publishBtn");
+
+    // Update connection status
+    client.on("connect", () => {
+      statusDiv.textContent = "Status: Connected to broker";
+      statusDiv.style.color = "green";
+    });
+
+    client.on("error", (err) => {
+      statusDiv.textContent = `Status: Connection error - ${err.message}`;
+      statusDiv.style.color = "red";
+    });
+
+    client.on("offline", () => {
+      statusDiv.textContent = "Status: Offline";
+      statusDiv.style.color = "red";
+    });
+
+    // Publish button click event
+    publishBtn.addEventListener("click", () => {
+      const topic = topicInput.value.trim();
+      const message = messageInput.value.trim();
+
+      if (!topic || !message) {
+        alert("Please provide both topic and message!");
+        return;
+      }
+
+      client.publish(topic, message, (err) => {
+        if (err) {
+          messageLogDiv.textContent = `Message Log: Failed to publish message - ${err.message}`;
+          messageLogDiv.style.color = "red";
+        } else {
+          messageLogDiv.textContent = `Message Log: Message successfully published to topic "${topic}".`;
+          messageLogDiv.style.color = "green";
         }
-
-        // Called when the client loses its connection
-        function onConnectionLost(responseObject) {
-            if (responseObject.errorCode !== 0) {
-                document.getElementById("status").innerHTML = "Connection lost: " + responseObject.errorMessage;
-            }
-        }
-
-        // Called when a message arrives (though not subscribed, included for completeness)
-        function onMessageArrived(message) {
-            console.log("Message arrived: " + message.payloadString);
-        }
-
-        // Function to send message
-        function sendMessage() {
-            var messageText = document.getElementById("message").value;
-            if (messageText && client.isConnected()) {
-                var message = new Paho.MQTT.Message(messageText);
-                message.destinationName = "hkust/ece/enose/";
-                client.send(message);
-                document.getElementById("status").innerHTML = "Message sent: " + messageText;
-            } 
-            else if (!client.isConnected()) {
-                document.getElementById("status").innerHTML = "Not connected to broker";
-            }
-            else {
-                document.getElementById("status").innerHTML = "Not connected or empty message";
-            }
-        }
-    </script>
+      });
+    });
+  </script>
 </body>
 </html>
