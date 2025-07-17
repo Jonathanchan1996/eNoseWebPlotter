@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>eNose Plotter</title>
+  <title>eNoseVis</title>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/date-fns"></script>
@@ -68,7 +68,7 @@
 </head>
 <body>
   <div class="container">
-    <h1>HKUST e-Nose Plotter</h1>
+    <h1>HKUST eNoseVis</h1>
     <div>
       <label for="uid">UID:</label>
       <input type="text" id="uid" value="a1" class="neu-input">
@@ -179,8 +179,24 @@
       [140, 150, 198], [140, 107, 177], [136, 65, 157], [129, 15, 124], [77, 0, 75]
     ];
 
+    function roundedRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+
     function drawHeatmap(sensorData) {
       const cellSize = 100;
+      const radius = 10; // Adjust for desired roundness
       const grid = [
         [sensorData[0], sensorData[1], sensorData[2]],
         [sensorData[3], sensorData[4], sensorData[5]],
@@ -191,7 +207,7 @@
           const colorIndex = Math.min(Math.floor(value * (gnBuColors.length - 1)), gnBuColors.length - 1);
           const [r, g, b] = gnBuColors[colorIndex];
           heatmapCtx.fillStyle = `rgb(${r},${g},${b})`;
-          heatmapCtx.fillRect(colIdx * cellSize, rowIdx * cellSize, cellSize, cellSize);
+          roundedRect(heatmapCtx, colIdx * cellSize, rowIdx * cellSize, cellSize, cellSize, radius);
           const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
           heatmapCtx.fillStyle = brightness > 150 ? 'black' : 'white';
           heatmapCtx.font = "16px Arial";
