@@ -42,6 +42,7 @@
     let currentUID = 'a1';
     let sensorHistories = Array.from({ length: 9 }, () => []);
     let pcaData = [];
+    let previousBasePoints = null;
     const baseColors = {
       'W': 'blue',
       'A': 'purple',
@@ -168,17 +169,28 @@
           pcaChart.update();
         } else if (topic === `${path}/classify/base_points`) {
           const basePoints = JSON.parse(message.toString());
+          const basePointsStr = JSON.stringify(basePoints);
+          if (previousBasePoints !== null && basePointsStr === previousBasePoints) {
+            return; // Skip update if same as previous
+          }
+          previousBasePoints = basePointsStr;
           // Clear existing base datasets
           pcaChart.data.datasets = pcaChart.data.datasets.filter(ds => !ds.label.includes('Base'));
-          
+          const baseColors = {
+                'W': 'rgba(31, 119, 180, 1.0)',    // Muted blue
+                'A': 'rgba(255, 127, 14, 1.0)',    // Muted orange  
+                'B': 'rgba(44, 160, 44, 1.0)',     // Muted green
+                'T': 'rgba(214, 39, 40, 1.0)',     // Muted red
+                'F': 'rgba(148, 103, 189, 1.0)'    // Muted purple
+            };
           // Add new base points
           for (const [key, point] of Object.entries(basePoints)) {
               pcaChart.data.datasets.push({
                   label: `${key} Base`,
                   data: [{x: point[0], y: point[1]}],
-                  backgroundColor: baseColors[key] || 'rgba(0, 0, 0, 0.5)',
-                  pointRadius: 8,
-                  pointStyle: 'triangle'
+                  backgroundColor: baseColors[key].replace('1.0', '0.3'), // Add transparency
+                  pointRadius: 10,
+                  pointStyle: 'circle'
               });
           }
           pcaChart.update();
