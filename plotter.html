@@ -64,6 +64,19 @@
     #heatmap {
       animation: pulse 1s ease-in-out;
     }
+
+    .heatmap-container {
+      width: 100%;
+      max-width: 300px;
+      aspect-ratio: 1 / 1;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 600px) {
+      .heatmap-container {
+        max-width: 90vw;
+      }
+    }
   </style>
 </head>
 <body>
@@ -76,7 +89,9 @@
     </div>
     <div class="neu-chart">
       <h2>Sensor Pattern</h2>
-      <canvas id="heatmap" width="300" height="300" style="display: block; margin: 0 auto;"></canvas>
+      <div class="heatmap-container">
+        <canvas id="heatmap"></canvas>
+      </div>
     </div>
     <div class="neu-chart">
       <h2>Dimension Reduction</h2>
@@ -195,8 +210,15 @@
     }
 
     function drawHeatmap(sensorData) {
-      const cellSize = 100;
-      const radius = 10; // Adjust for desired roundness
+      const container = document.querySelector('.heatmap-container');
+      const size = Math.min(container.clientWidth, container.clientHeight);
+      heatmapCanvas.width = size;
+      heatmapCanvas.height = size;
+
+      const cellSize = size / 3;
+      const radius = cellSize / 10; // Scale radius
+      const fontSize = Math.max(10, cellSize / 6); // Scale font size
+
       const grid = [
         [sensorData[0], sensorData[1], sensorData[2]],
         [sensorData[3], sensorData[4], sensorData[5]],
@@ -210,8 +232,10 @@
           roundedRect(heatmapCtx, colIdx * cellSize, rowIdx * cellSize, cellSize, cellSize, radius);
           const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
           heatmapCtx.fillStyle = brightness > 150 ? 'black' : 'white';
-          heatmapCtx.font = "16px Arial";
-          heatmapCtx.fillText(value.toFixed(3), colIdx * cellSize + 35, rowIdx * cellSize + 55);
+          heatmapCtx.font = `${fontSize}px Arial`;
+          heatmapCtx.textAlign = 'center';
+          heatmapCtx.textBaseline = 'middle';
+          heatmapCtx.fillText(value.toFixed(3), colIdx * cellSize + cellSize / 2, rowIdx * cellSize + cellSize / 2);
         });
       });
     }
