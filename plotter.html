@@ -110,6 +110,7 @@
     let sensorHistories = Array.from({ length: 9 }, () => []);
     let pcaData = [];
     let previousBasePoints = null;
+    let lastSensorData = null;
     const baseColors = {
       'W': 'blue',
       'A': 'purple',
@@ -271,6 +272,7 @@
             if (sensorChart.data.datasets[index].data.length > 20) sensorChart.data.datasets[index].data.shift();
           });
           sensorChart.update();
+          lastSensorData = sensorRawData;
           drawHeatmap(sensorRawData);
         } else if (topic === `${path}/classify/point`) {
           const [x, y] = JSON.parse(message.toString());
@@ -311,6 +313,14 @@
       currentUID = document.getElementById('uid').value.trim();
       connectAndSubscribe();
     });
+
+    function handleResize() {
+      if (lastSensorData) {
+        drawHeatmap(lastSensorData);
+      }
+    }
+
+    window.addEventListener('resize', handleResize);
 
     // Initial connection
     connectAndSubscribe();
